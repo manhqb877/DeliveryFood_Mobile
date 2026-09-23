@@ -97,5 +97,5 @@ Lý do: `localhost` trên điện thoại nghĩa là chính cái điện thoại
    ```bash
    node update-ip.js
    ```
-5. Kịch bản `update-ip.js` sẽ tự động quét và cập nhật lại toàn bộ đường dẫn API của Web Khách Hàng, Dashboard Admin, và Mobile App. 
-6. Khởi động lại các project (`npm run dev` / `npx expo start`) là xong! Mọi máy trong mạng LAN đã có thể gọi API tới nhau bình thường.
+5. Kịch bản `update-ip.js` sẽ tự động quét và cập nhật lại đường dẫn API của Mobile App. 
+6. Khởi động lại project (`npx expo start`) là xong! App trên điện thoại đã có thể gọi API tới Backend trên Macbook bình thường.

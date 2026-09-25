@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Sử dụng IP cục bộ của máy tính để tránh lỗi 503 của localtunnel
-const BASE_URL = 'http://10.62.148.11:8080/api/v1';
+const BASE_URL = 'http://192.168.100.151:8080/api/v1';
 
 const apiClient = axios.create({
   baseURL: BASE_URL,

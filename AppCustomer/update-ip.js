@@ -8,7 +8,7 @@ function getLocalIP() {
   for (const name of Object.keys(interfaces)) {
     for (const iface of interfaces[name]) {
       if (iface.family === 'IPv4' && !iface.internal) {
-        return iface.address; // Lấy IP IPv4 không phải là localhost
+        return iface.address;
       }
     }
   }
@@ -18,7 +18,7 @@ function getLocalIP() {
 const localIp = getLocalIP();
 console.log(`🚀 Đang tự động lấy IP máy tính: ${localIp}...`);
 
-// 1. Cập nhật IP vào file .env trước
+// 1. Cập nhật IP vào file .env
 const envPath = path.join(__dirname, '.env');
 if (fs.existsSync(envPath)) {
   let envContent = fs.readFileSync(envPath, 'utf8');
@@ -34,27 +34,20 @@ if (fs.existsSync(envPath)) {
   console.log(`✅ Đã tạo mới file .env và thêm IP`);
 }
 
-const replaceIpInFile = (filePath, regex, replacement) => {
-  const fullPath = path.join(__dirname, filePath);
-  if (fs.existsSync(fullPath)) {
-    const content = fs.readFileSync(fullPath, 'utf8');
-    const newContent = content.replace(regex, replacement);
-    if (content !== newContent) {
-      fs.writeFileSync(fullPath, newContent, 'utf8');
-      console.log(`✅ Đã cập nhật: ${filePath}`);
-    } else {
-      console.log(`➖ Không có thay đổi: ${filePath}`);
-    }
+// 2. Cập nhật vào apiClient.js nếu có
+const apiClientPath = path.join(__dirname, 'src/api/apiClient.js');
+if (fs.existsSync(apiClientPath)) {
+  const content = fs.readFileSync(apiClientPath, 'utf8');
+  const newContent = content.replace(
+    /http:\/\/(localhost|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):8080\/api\/v1/g,
+    `http://${localIp}:8080/api/v1`
+  );
+  if (content !== newContent) {
+    fs.writeFileSync(apiClientPath, newContent, 'utf8');
+    console.log(`✅ Đã cập nhật: src/api/apiClient.js`);
   } else {
-    console.warn(`⚠️ Không tìm thấy file: ${filePath}`);
+    console.log(`➖ Không có thay đổi: src/api/apiClient.js`);
   }
-};
+}
 
-// 1. Cập nhật App Shipper (Chính nó)
-replaceIpInFile(
-  'src/lib/apiClient.js',
-  /http:\/\/(localhost|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):8080\/api\/v1/g,
-  `http://${localIp}:8080/api/v1`
-);
-
-console.log('🎉 Đã hoàn tất thay đổi IP cho AppShipper! Khởi động lại app để nhận IP mới nhé!');
+console.log('🎉 Đã hoàn tất thay đổi IP cho AppCustomer!');

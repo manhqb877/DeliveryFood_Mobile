@@ -9,6 +9,8 @@ import { Home, ShoppingBasket, User, Receipt } from 'lucide-react-native';
 
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { CartProvider, useCart } from './src/context/CartContext';
+import { NotificationProvider } from './src/context/NotificationContext';
+import NotificationToast from './src/components/NotificationToast';
 
 import LoginScreen from './src/screens/auth/LoginScreen';
 import RegisterScreen from './src/screens/auth/RegisterScreen';
@@ -22,6 +24,8 @@ import OrderHistoryScreen from './src/screens/order/OrderHistoryScreen';
 import OrderDetailScreen from './src/screens/order/OrderDetailScreen';
 import CartScreen from './src/screens/cart/CartScreen';
 import CheckoutScreen from './src/screens/order/CheckoutScreen';
+import ChatScreen from './src/screens/chat/ChatScreen';
+import NotificationScreen from './src/screens/notification/NotificationScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -122,6 +126,8 @@ function RootNavigator() {
             <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
             <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />
             <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
+            <Stack.Screen name="Chat" component={ChatScreen} />
+            <Stack.Screen name="Notifications" component={NotificationScreen} />
           </>
         )}
       </Stack.Navigator>
@@ -135,9 +141,12 @@ export default function App() {
       <View style={Platform.OS === 'web' ? styles.webWrapper : styles.mobileWrapper}>
         <SafeAreaProvider>
           <AuthProvider>
-            <CartProvider>
-              <RootNavigator />
-            </CartProvider>
+            <NotificationProvider>
+              <CartProvider>
+                <RootNavigator />
+                <NotificationToast />
+              </CartProvider>
+            </NotificationProvider>
           </AuthProvider>
         </SafeAreaProvider>
       </View>

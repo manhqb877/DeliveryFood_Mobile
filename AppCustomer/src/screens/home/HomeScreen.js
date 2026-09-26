@@ -35,10 +35,12 @@ import {
   Gift,
   X,
   Copy,
+  Bell,
 } from 'lucide-react-native';
 import { coreApi } from '../../api/coreApi';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
+import { useNotification } from '../../context/NotificationContext';
 import moment from 'moment';
 
 const { width } = Dimensions.get('window');
@@ -65,6 +67,7 @@ const BANNERS = [
 export default function HomeScreen({ navigation }) {
   const { user } = useAuth();
   const { totalCount } = useCart();
+  const { unreadCount } = useNotification();
   const [shops, setShops] = useState([]);
   const [promotions, setPromotions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -146,17 +149,33 @@ export default function HomeScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity
-          style={styles.cartHeaderBtn}
-          onPress={() => navigation.navigate('Cart')}
-        >
-          <ShoppingBasket size={22} color="#111827" />
-          {totalCount > 0 && (
-            <View style={styles.cartHeaderBadge}>
-              <Text style={styles.cartHeaderBadgeText}>{totalCount}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        <View style={styles.headerRightActions}>
+          <TouchableOpacity
+            style={styles.bellHeaderBtn}
+            onPress={() => navigation.navigate('Notifications')}
+          >
+            <Bell size={21} color="#111827" />
+            {unreadCount > 0 && (
+              <View style={styles.bellHeaderBadge}>
+                <Text style={styles.bellHeaderBadgeText}>
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.cartHeaderBtn}
+            onPress={() => navigation.navigate('Cart')}
+          >
+            <ShoppingBasket size={21} color="#111827" />
+            {totalCount > 0 && (
+              <View style={styles.cartHeaderBadge}>
+                <Text style={styles.cartHeaderBadgeText}>{totalCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Thanh Search Bar */}
@@ -429,6 +448,37 @@ const styles = StyleSheet.create({
   locationContainer: {
     flex: 1,
     marginRight: 12,
+  },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  bellHeaderBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  bellHeaderBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 3,
+  },
+  bellHeaderBadgeText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#FFFFFF',
   },
   cartHeaderBtn: {
     width: 40,

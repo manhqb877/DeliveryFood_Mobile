@@ -1,8 +1,8 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Địa chỉ IP backend - cập nhật tự động bằng node update-ip.js
-const BASE_URL = 'http://192.168.100.151:8080/api/v1';
+export const GATEWAY_URL = 'http://192.168.100.151:8080';
+const BASE_URL = `${GATEWAY_URL}/api/v1`;
 
 const apiClient = axios.create({
   baseURL: BASE_URL,

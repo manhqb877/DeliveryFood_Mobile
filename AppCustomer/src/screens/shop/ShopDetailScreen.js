@@ -20,7 +20,10 @@ import {
   ShoppingBasket,
   ChevronLeft,
   ChevronRight,
+  MessageCircle,
 } from 'lucide-react-native';
+import { useAuth } from '../../context/AuthContext';
+import apiClient from '../../api/apiClient';
 import { coreApi } from '../../api/coreApi';
 import { useCart } from '../../context/CartContext';
 import ProductOptionModal from '../../components/ProductOptionModal';
@@ -37,7 +40,34 @@ export default function ShopDetailScreen({ route, navigation }) {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
 
+  const { user, guestSessionId } = useAuth();
   const { items, addToCart, removeFromCart, totalCount, totalPrice } = useCart();
+
+  const handleMessageShop = async () => {
+    try {
+      setLoading(true);
+      const payload = {
+        shopId: shop.id,
+        customerId: user?.id,
+        guestSessionId: guestSessionId,
+        shopName: shop.shopName || shop.name,
+        shopLogo: shop.logoUrl,
+        customerName: user?.fullName || 'Khách hàng',
+      };
+      const res = await apiClient.post('/conversations/init', payload);
+      const conv = res.data || res;
+      navigation.navigate('Chat', {
+        conversationId: conv.id,
+        shopName: shop.shopName || shop.name,
+        shopLogo: shop.logoUrl,
+      });
+    } catch (e) {
+      console.error('Lỗi khi tạo cuộc trò chuyện:', e);
+      Alert.alert('Lỗi', 'Không thể bắt đầu cuộc trò chuyện với quán lúc này.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -154,6 +184,11 @@ export default function ShopDetailScreen({ route, navigation }) {
               {shop?.locationDetail || shop?.address || 'Khu đô thị Đại học Quốc Gia, TP. Hồ Chí Minh'}
             </Text>
           </View>
+          
+          <TouchableOpacity style={styles.chatButton} onPress={handleMessageShop}>
+            <MessageCircle size={18} color="#FFFFFF" />
+            <Text style={styles.chatButtonText}>Nhắn tin cho quán</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Horizontal Category Tabs */}
@@ -641,6 +676,21 @@ const styles = StyleSheet.create({
     color: '#111827',
     fontWeight: '900',
     fontSize: 13,
+  },
+  chatButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFB700',
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  chatButtonText: {
+    color: '#111827',
+    fontWeight: 'bold',
+    marginLeft: 8,
+    fontSize: 14,
   },
   loadingWrap: {
     paddingVertical: 40,

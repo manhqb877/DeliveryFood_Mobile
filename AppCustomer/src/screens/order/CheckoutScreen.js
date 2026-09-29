@@ -24,6 +24,9 @@ import {
   Clock,
   Sparkles,
   ShoppingBasket,
+  QrCode,
+  Copy,
+  RefreshCw,
 } from 'lucide-react-native';
 import { useCart, getOrCreateGuestSessionId } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
@@ -31,6 +34,7 @@ import { authApi } from '../../api/authApi';
 import { coreApi } from '../../api/coreApi';
 import { cartApi } from '../../api/cartApi';
 import { orderApi } from '../../api/orderApi';
+import { paymentApi } from '../../api/paymentApi';
 
 export default function CheckoutScreen({ navigation }) {
   const { items, cartShop, cartId, activeCart, totalPrice, clearCart } = useCart();
@@ -62,6 +66,31 @@ export default function CheckoutScreen({ navigation }) {
   const [selectedShopPromo, setSelectedShopPromo] = useState(null);
   const [selectedPlatformPromo, setSelectedPlatformPromo] = useState(null);
   const [loadingPromos, setLoadingPromos] = useState(false);
+
+  // Payment method: 'ONLINE' (SePay VietQR) | 'COD'
+  const [paymentMethod, setPaymentMethod] = useState('ONLINE');
+  const [qrModalVisible, setQrModalVisible] = useState(false);
+  const [createdOrderData, setCreatedOrderData] = useState(null);
+  const [isPaid, setIsPaid] = useState(false);
+  const [checkingPayment, setCheckingPayment] = useState(false);
+
+  // Polling payment status when QR modal is active
+  useEffect(() => {
+    let timer;
+    if (qrModalVisible && createdOrderData?.id && !isPaid) {
+      timer = setInterval(async () => {
+        try {
+          const res = await paymentApi.getPaymentStatus(createdOrderData.id);
+          const st = res?.data?.status || res?.status;
+          if (st === 'SUCCESS' || st === 'PAID') {
+            setIsPaid(true);
+            clearInterval(timer);
+          }
+        } catch (_) {}
+      }, 3000);
+    }
+    return () => clearInterval(timer);
+  }, [qrModalVisible, createdOrderData?.id, isPaid]);
 
   // Submitting state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -328,7 +357,7 @@ export default function CheckoutScreen({ navigation }) {
           latitude: 10.8016,
           longitude: 106.6392,
         },
-        paymentMethod: 'COD',
+        paymentMethod: paymentMethod,
         orderNote: note.trim(),
         idempotencyKey: 'idem_' + Date.now(),
         promotionCode: appliedPromoCodes || null,
@@ -339,19 +368,35 @@ export default function CheckoutScreen({ navigation }) {
       const res = await orderApi.createOrder(payload, payload.idempotencyKey);
       const createdOrder = res?.data || res;
 
-      Alert.alert(
-        'Đặt đơn thành công! 🎉',
-        `Mã đơn: ${createdOrder.orderCode || '#' + createdOrder.id}\nShipper sẽ sớm liên hệ và giao hàng tới bạn!`,
-        [
-          {
-            text: 'Xem đơn hàng',
-            onPress: () => {
-              clearCart();
-              navigation.navigate('OrderDetail', { orderId: createdOrder.id });
+      if (paymentMethod === 'ONLINE') {
+        try {
+          await paymentApi.createSepayQr({
+            orderId: createdOrder.id,
+            orderCode: createdOrder.orderCode,
+            amount: createdOrder.totalAmount || finalTotal,
+            userId: user?.id || null,
+          });
+        } catch (qrErr) {
+          console.warn('SePay init warning:', qrErr);
+        }
+        setCreatedOrderData(createdOrder);
+        setQrModalVisible(true);
+        clearCart();
+      } else {
+        Alert.alert(
+          'Đặt đơn thành công! 🎉',
+          `Mã đơn: ${createdOrder.orderCode || '#' + createdOrder.id}\nShipper sẽ sớm liên hệ và giao hàng tới bạn!`,
+          [
+            {
+              text: 'Xem đơn hàng',
+              onPress: () => {
+                clearCart();
+                navigation.navigate('OrderDetail', { orderId: createdOrder.id });
+              },
             },
-          },
-        ]
-      );
+          ]
+        );
+      }
     } catch (err) {
       let errorMsg =
         err.response?.data?.message ||
@@ -637,30 +682,68 @@ export default function CheckoutScreen({ navigation }) {
           />
         </View>
 
-        {/* Phương thức thanh toán (COD Tiền Mặt) */}
+        {/* Phương thức thanh toán (COD hoặc VietQR SePay) */}
         <View style={styles.card}>
           <View style={styles.paymentHeader}>
             <Text style={styles.cardHeading}>PHƯƠNG THỨC THANH TOÁN</Text>
-            <View style={styles.codTag}>
-              <Text style={styles.codTagText}>COD Tiền Mặt</Text>
+            <View style={[styles.codTag, paymentMethod === 'ONLINE' ? { backgroundColor: '#EFF6FF' } : { backgroundColor: '#ECFDF5' }]}>
+              <Text style={[styles.codTagText, paymentMethod === 'ONLINE' ? { color: '#1D4ED8' } : { color: '#047857' }]}>
+                {paymentMethod === 'ONLINE' ? '⚡ VietQR SePay' : '💵 COD Tiền Mặt'}
+              </Text>
             </View>
           </View>
 
-          <View style={styles.codCard}>
+          {/* Option 1: SePay VietQR */}
+          <TouchableOpacity
+            style={[
+              styles.codCard,
+              paymentMethod === 'ONLINE' && { borderColor: '#2563EB', backgroundColor: '#F0F7FF', borderWidth: 2 },
+            ]}
+            onPress={() => setPaymentMethod('ONLINE')}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.codIconCircle, paymentMethod === 'ONLINE' && { backgroundColor: '#DBEAFE' }]}>
+              <QrCode size={22} color={paymentMethod === 'ONLINE' ? '#2563EB' : '#6B7280'} />
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={[styles.codTitle, paymentMethod === 'ONLINE' && { color: '#1E40AF' }]}>
+                  Chuyển khoản VietQR (SePay)
+                </Text>
+                <View style={{ backgroundColor: '#FEE2E2', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 }}>
+                  <Text style={{ fontSize: 9, fontWeight: '700', color: '#DC2626' }}>Tự động</Text>
+                </View>
+              </View>
+              <Text style={styles.codDesc}>
+                Quét mã QR qua mọi ứng dụng ngân hàng hoặc ví điện tử. Hệ thống tự động xác nhận tức thì!
+              </Text>
+            </View>
+            <CheckCircle2 size={20} color={paymentMethod === 'ONLINE' ? '#2563EB' : '#D1D5DB'} />
+          </TouchableOpacity>
+
+          {/* Option 2: COD */}
+          <TouchableOpacity
+            style={[
+              styles.codCard,
+              { marginTop: 10 },
+              paymentMethod === 'COD' && { borderColor: '#10B981', backgroundColor: '#ECFDF5', borderWidth: 2 },
+            ]}
+            onPress={() => setPaymentMethod('COD')}
+            activeOpacity={0.8}
+          >
             <View style={styles.codIconCircle}>
-              <CreditCard size={22} color="#10B981" />
+              <CreditCard size={22} color={paymentMethod === 'COD' ? '#10B981' : '#6B7280'} />
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={styles.codTitle}>
-                Thanh toán khi nhận món (COD - Cash On Delivery)
+                Thanh toán khi nhận món (COD)
               </Text>
               <Text style={styles.codDesc}>
-                Bạn sẽ thanh toán số tiền cho shipper khi nhận được đúng và đủ món ăn. An toàn
-                100%.
+                Bạn sẽ thanh toán số tiền cho shipper khi nhận được đúng và đủ món ăn. An toàn 100%.
               </Text>
             </View>
-            <CheckCircle2 size={20} color="#10B981" />
-          </View>
+            <CheckCircle2 size={20} color={paymentMethod === 'COD' ? '#10B981' : '#D1D5DB'} />
+          </TouchableOpacity>
         </View>
 
         {/* Khuyến mãi / Voucher */}
@@ -866,21 +949,342 @@ export default function CheckoutScreen({ navigation }) {
         </View>
 
         <TouchableOpacity
-          style={[styles.placeOrderBtn, isSubmitting && styles.placeOrderBtnDisabled]}
+          style={[
+            styles.placeOrderBtn,
+            paymentMethod === 'ONLINE' && { backgroundColor: '#2563EB' },
+            isSubmitting && styles.placeOrderBtnDisabled,
+          ]}
           onPress={handlePlaceOrder}
           disabled={isSubmitting}
           activeOpacity={0.8}
         >
           {isSubmitting ? (
-            <ActivityIndicator color="#111827" />
+            <ActivityIndicator color={paymentMethod === 'ONLINE' ? '#FFFFFF' : '#111827'} />
           ) : (
-            <Text style={styles.placeOrderBtnText}>ĐẶT HÀNG (COD)</Text>
+            <Text style={[styles.placeOrderBtnText, paymentMethod === 'ONLINE' && { color: '#FFFFFF' }]}>
+              {paymentMethod === 'ONLINE' ? '⚡ ĐẶT HÀNG & QUÉT MÃ QR' : '💵 ĐẶT HÀNG (COD)'}
+            </Text>
           )}
         </TouchableOpacity>
       </View>
+
+      {/* SEPAY VIETQR PAYMENT MODAL */}
+      <Modal
+        visible={qrModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setQrModalVisible(false)}
+      >
+        <View style={modalStyles.overlay}>
+          <View style={modalStyles.modalCard}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Header */}
+              <View style={modalStyles.header}>
+                <View style={modalStyles.iconCircle}>
+                  {isPaid ? (
+                    <CheckCircle2 size={32} color="#16A34A" />
+                  ) : (
+                    <QrCode size={32} color="#2563EB" />
+                  )}
+                </View>
+                <Text style={modalStyles.title}>
+                  {isPaid ? 'Thanh toán thành công! 🎉' : 'Quét mã VietQR để thanh toán'}
+                </Text>
+                <Text style={modalStyles.subTitle}>
+                  Mã đơn: <Text style={{ fontWeight: '800', color: '#1E40AF' }}>{createdOrderData?.orderCode}</Text>
+                </Text>
+
+                {/* Status Badge */}
+                <View style={[modalStyles.statusBadge, isPaid ? modalStyles.statusBadgePaid : modalStyles.statusBadgeWaiting]}>
+                  <Text style={[modalStyles.statusText, isPaid ? { color: '#15803D' } : { color: '#B45309' }]}>
+                    {isPaid ? '✓ Đã nhận thanh toán từ SePay · Đang chuyển đến nhà hàng' : '● Đang chờ bạn quét mã... Tự động xác nhận'}
+                  </Text>
+                </View>
+              </View>
+
+              {/* QR Image Box */}
+              {!isPaid && (
+                <View style={modalStyles.qrWrapper}>
+                  <Image
+                    source={{
+                      uri: `https://qr.sepay.vn/img?acc=025452790502&bank=MBBank&amount=${Number(createdOrderData?.totalAmount || finalTotal)}&des=${encodeURIComponent(createdOrderData?.orderCode || '')}`,
+                    }}
+                    style={modalStyles.qrImage}
+                    resizeMode="contain"
+                  />
+                  <Text style={modalStyles.qrHint}>Mở App ngân hàng bất kỳ để quét mã</Text>
+                </View>
+              )}
+
+              {/* Transfer Details Card */}
+              <View style={modalStyles.infoCard}>
+                <View style={modalStyles.infoRow}>
+                  <Text style={modalStyles.infoLabel}>Ngân hàng:</Text>
+                  <Text style={modalStyles.infoVal}>MBBank (Quân Đội)</Text>
+                </View>
+                <View style={modalStyles.divider} />
+
+                <View style={modalStyles.infoRow}>
+                  <Text style={modalStyles.infoLabel}>Số tài khoản:</Text>
+                  <Text selectable={true} style={[modalStyles.infoVal, { fontWeight: '800', fontSize: 15 }]}>025452790502</Text>
+                </View>
+                <View style={modalStyles.divider} />
+
+                <View style={modalStyles.infoRow}>
+                  <Text style={modalStyles.infoLabel}>Chủ tài khoản:</Text>
+                  <Text style={[modalStyles.infoVal, { textTransform: 'uppercase' }]}>NGUYEN THAI AN</Text>
+                </View>
+                <View style={modalStyles.divider} />
+
+                <View style={modalStyles.infoRow}>
+                  <Text style={modalStyles.infoLabel}>Số tiền:</Text>
+                  <Text style={[modalStyles.infoVal, { color: '#DC2626', fontWeight: '800', fontSize: 16 }]}>
+                    {formatVND(createdOrderData?.totalAmount || finalTotal)}
+                  </Text>
+                </View>
+                <View style={modalStyles.divider} />
+
+                <View style={modalStyles.infoRowHighlight}>
+                  <Text style={modalStyles.infoLabelHighlight}>Nội dung chuyển khoản (bắt buộc):</Text>
+                  <Text selectable={true} style={modalStyles.infoValHighlight}>{createdOrderData?.orderCode}</Text>
+                  <Text style={modalStyles.warnText}>
+                    * Bạn có thể ấn giữ để sao chép số tài khoản và mã đơn hàng. Vui lòng giữ nguyên nội dung chuyển khoản để hệ thống SePay tự động khớp đơn!
+                  </Text>
+                </View>
+              </View>
+
+              {/* Action Buttons */}
+              <View style={modalStyles.actionsWrap}>
+                {!isPaid && (
+                  <TouchableOpacity
+                    style={[modalStyles.checkBtn, checkingPayment && { opacity: 0.6 }]}
+                    onPress={async () => {
+                      if (!createdOrderData?.id) return;
+                      setCheckingPayment(true);
+                      try {
+                        const res = await paymentApi.getPaymentStatus(createdOrderData.id);
+                        const st = res?.data?.status || res?.status;
+                        if (st === 'SUCCESS' || st === 'PAID') {
+                          setIsPaid(true);
+                        } else {
+                          Alert.alert('Chờ xác nhận', 'Hệ thống chưa ghi nhận tiền vào tài khoản. Vui lòng đợi 10-30s sau khi chuyển khoản nhé!');
+                        }
+                      } catch (_) {
+                        Alert.alert('Thông báo', 'Đang kết nối lại hệ thống...');
+                      } finally {
+                        setCheckingPayment(false);
+                      }
+                    }}
+                    disabled={checkingPayment}
+                    activeOpacity={0.8}
+                  >
+                    <RefreshCw size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                    <Text style={modalStyles.checkBtnText}>
+                      {checkingPayment ? 'Đang kiểm tra...' : 'Tôi đã chuyển khoản'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                <TouchableOpacity
+                  style={modalStyles.orderDetailBtn}
+                  onPress={() => {
+                    setQrModalVisible(false);
+                    if (createdOrderData?.id) {
+                      navigation.navigate('OrderDetail', { orderId: createdOrderData.id });
+                    }
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={modalStyles.orderDetailBtnText}>Xem chi tiết đơn hàng</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={modalStyles.closeBtn}
+                  onPress={() => setQrModalVisible(false)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={modalStyles.closeBtnText}>Đóng</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
+
+const modalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    maxHeight: '90%',
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  iconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#EFF6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#111827',
+    textAlign: 'center',
+  },
+  subTitle: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  statusBadge: {
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 100,
+  },
+  statusBadgeWaiting: {
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  statusBadgePaid: {
+    backgroundColor: '#DCFCE7',
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  qrWrapper: {
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 16,
+  },
+  qrImage: {
+    width: 190,
+    height: 190,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+  },
+  qrHint: {
+    fontSize: 11,
+    color: '#6B7280',
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
+  infoCard: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 16,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  infoLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  infoVal: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 2,
+  },
+  infoRowHighlight: {
+    marginTop: 6,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 10,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  infoLabelHighlight: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#1E40AF',
+  },
+  infoValHighlight: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#1E40AF',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    marginTop: 2,
+  },
+  warnText: {
+    fontSize: 10,
+    color: '#B45309',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  actionsWrap: {
+    gap: 8,
+  },
+  checkBtn: {
+    backgroundColor: '#2563EB',
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  checkBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  orderDetailBtn: {
+    backgroundColor: '#F3F4F6',
+    paddingVertical: 12,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  orderDetailBtnText: {
+    color: '#374151',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  closeBtn: {
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  closeBtnText: {
+    color: '#9CA3AF',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+});
 
 const styles = StyleSheet.create({
   container: {

@@ -87,15 +87,10 @@ Lý do: `localhost` trên điện thoại nghĩa là chính cái điện thoại
 2. **Lấy IP hiện tại của máy chạy Backend (Mac/Windows):**
    - Trên Mac: Mở Terminal gõ `ipconfig getifaddr en0` (sẽ ra dạng `192.168.x.x`).
    - Trên Windows: Mở CMD gõ `ipconfig` (tìm dòng IPv4 Address).
-3. **Mở file cấu hình chung:** 
-   Tại thư mục `AppShipper`, mở file `.env` lên. Sửa dòng `LOCAL_IP` thành IP của bạn:
-   ```env
-   LOCAL_IP=192.168.1.15
-   ```
-4. **Chạy Script Cập Nhật Tự Động:**
-   Mở Terminal ở thư mục `AppShipper` và chạy lệnh sau (yêu cầu máy có cài Node.js):
+3. **Chạy Script Cập Nhật Tự Động (Chỉ 1 Lệnh):**
+   Mở Terminal tại thư mục gốc của dự án `Code` và chạy lệnh:
    ```bash
    node update-ip.js
    ```
-5. Kịch bản `update-ip.js` sẽ tự động quét và cập nhật lại đường dẫn API của Mobile App. 
-6. Khởi động lại project (`npx expo start`) là xong! App trên điện thoại đã có thể gọi API tới Backend trên Macbook bình thường.
+4. Kịch bản `update-ip.js` sẽ tự động phát hiện IP Wi-Fi và đồng bộ cập nhật đường dẫn API cho toàn bộ hệ thống (AppShipper, AppCustomer, Web và Dashboard).
+5. Khởi động lại project (`cd DeliveryFood_Mobile/AppShipper && npx expo start -c`) là xong! App trên điện thoại đã có thể gọi API tới Backend trên Macbook bình thường.

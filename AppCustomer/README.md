@@ -19,13 +19,13 @@ npm install
 Ứng dụng trên điện thoại không thể gọi API đến `localhost` của máy tính. Nó phải gọi thông qua **địa chỉ IP mạng LAN** của máy tính (ví dụ: `192.168.1.x`).
 Dự án đã có sẵn file script tự động lấy IP máy tính và ghi vào các file cần thiết.
 
-Hãy chạy lệnh này ở terminal (trong thư mục `AppCustomer`):
+Hãy chạy lệnh này ở terminal (tại thư mục gốc của dự án `Code`):
 ```bash
 node update-ip.js
 ```
-*Lệnh này sẽ tự động thay đổi `LOCAL_IP` trong `.env` và đổi url trong `apiClient.js` sang IP đúng của máy.*
+*Lệnh này sẽ tự động phát hiện IP Wi-Fi và đồng bộ cho cả AppCustomer, AppShipper, Web và Dashboard.*
 
-> **Lưu ý**: Mỗi khi bạn thay đổi mạng Wi-Fi, máy tính sẽ được cấp IP khác. Bạn cần chạy lại `node update-ip.js` và khởi động lại ứng dụng Expo!
+> **Lưu ý**: Mỗi khi bạn thay đổi mạng Wi-Fi, máy tính sẽ được cấp IP khác. Bạn chỉ cần chạy lại `node update-ip.js` tại thư mục gốc!
 
 ## 4. Khởi động ứng dụng (Expo)
 Sau khi cập nhật IP thành công, hãy chạy ứng dụng:

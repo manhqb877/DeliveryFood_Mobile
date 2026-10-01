@@ -353,6 +353,30 @@ export default function CheckoutScreen({ navigation }) {
         .filter(Boolean)
         .join(', ');
 
+      let lat = selectedAddress?.latitude ? Number(selectedAddress.latitude) : null;
+      let lng = selectedAddress?.longitude ? Number(selectedAddress.longitude) : null;
+
+      if (!lat || !lng) {
+        try {
+          const vRes = await fetch(
+            `https://maps.vietmap.vn/api/autocomplete/v3?apikey=809bdd000025b62b0e9710b82e28f65f6178ee698cdb1845&text=${encodeURIComponent(fullDeliveryAddress)}`
+          );
+          const vData = await vRes.json();
+          if (Array.isArray(vData) && vData.length > 0 && vData[0]?.ref_id) {
+            const pRes = await fetch(
+              `https://maps.vietmap.vn/api/place/v3?apikey=809bdd000025b62b0e9710b82e28f65f6178ee698cdb1845&refid=${vData[0].ref_id}`
+            );
+            const place = await pRes.json();
+            if (place?.lat && place?.lng) {
+              lat = place.lat;
+              lng = place.lng;
+            }
+          }
+        } catch (e) {
+          console.warn('Geocoding in CheckoutScreen failed:', e);
+        }
+      }
+
       const payload = {
         cartId: finalCartId,
         deliveryAddress: {
@@ -360,8 +384,8 @@ export default function CheckoutScreen({ navigation }) {
           recipientName: fullName.trim(),
           recipientPhone: phone.trim(),
           note: note.trim(),
-          latitude: 10.8016,
-          longitude: 106.6392,
+          latitude: lat,
+          longitude: lng,
         },
         paymentMethod: paymentMethod,
         orderNote: note.trim(),
@@ -453,8 +477,8 @@ export default function CheckoutScreen({ navigation }) {
                 recipientName: fullName.trim(),
                 recipientPhone: phone.trim(),
                 note: note.trim(),
-                latitude: 10.8016,
-                longitude: 106.6392,
+                latitude: lat,
+                longitude: lng,
               },
               paymentMethod: 'COD',
               orderNote: note.trim(),

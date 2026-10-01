@@ -116,6 +116,13 @@ export default function OrderDetailScreen({ route, navigation }) {
     }
   }, [initialDelivery?.id]);
 
+  // Re-fetch routes when delivery coordinates change/load
+  useEffect(() => {
+    if (shipperCoords?.latitude && shipperCoords?.longitude && delivery?.deliveryLat && delivery?.deliveryLng) {
+      fetchRoutes(shipperCoords.latitude, shipperCoords.longitude);
+    }
+  }, [delivery?.deliveryLat, delivery?.deliveryLng]);
+
   const sendLocationToServer = (lat, lng) => {
     const sId = shipperRef.current?.id || shipper?.id;
     if (!sId) return;

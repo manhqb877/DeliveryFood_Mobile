@@ -17,6 +17,16 @@ export const coreApi = {
     return res?.data ?? res;
   },
 
+  // Tìm kiếm món ăn theo từ khóa
+  searchItems: async (keyword) => {
+    try {
+      const res = await apiClient.get(`/core/items/search?keyword=${encodeURIComponent(keyword)}`);
+      return Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+    } catch (_) {
+      return [];
+    }
+  },
+
   // Lấy danh sách khuyến mãi của quán
   getShopPromotions: async (shopId) => {
     try {

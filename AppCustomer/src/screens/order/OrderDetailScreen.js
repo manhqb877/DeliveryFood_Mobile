@@ -13,6 +13,7 @@ import { ArrowLeft, MapPin, Receipt, Star, Clock, Store, CheckCircle2, Bike, Ute
 import { orderApi } from '../../api/orderApi';
 import moment from 'moment';
 import ReviewModal from '../../components/ReviewModal';
+import { reviewApi } from '../../api/reviewApi';
 import TrackingMap from '../../components/TrackingMap';
 
 export default function OrderDetailScreen({ route, navigation }) {
@@ -20,6 +21,25 @@ export default function OrderDetailScreen({ route, navigation }) {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [hasReviewed, setHasReviewed] = useState(false);
+  const [existingReview, setExistingReview] = useState(null);
+  const [productReviewsData, setProductReviewsData] = useState([]);
+
+  const checkReviewStatus = async (targetOrderId) => {
+    try {
+      const rev = await reviewApi.getReviewByOrderId(targetOrderId);
+      if (rev && (rev.id || rev.orderId)) {
+        setExistingReview(rev);
+        setHasReviewed(true);
+        try {
+          const pRevs = await reviewApi.getProductReviewsByOrderId(targetOrderId);
+          if (pRevs && Array.isArray(pRevs)) {
+            setProductReviewsData(pRevs);
+          }
+        } catch (_) {}
+      }
+    } catch (_) {}
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -38,6 +58,7 @@ export default function OrderDetailScreen({ route, navigation }) {
     };
 
     fetchOrder();
+    checkReviewStatus(orderId);
     const interval = setInterval(fetchOrder, 3000); // Polling cập nhật tiến trình mỗi 3s giống bản Web
 
     return () => {
@@ -49,6 +70,21 @@ export default function OrderDetailScreen({ route, navigation }) {
   const formatVND = (price) => {
     return Number(price || 0).toLocaleString('vi-VN') + ' đ';
   };
+
+  const formatOptionText = (options) => {
+    if (!Array.isArray(options) || options.length === 0) return '';
+    return options
+      .map(o => {
+        const group = o.group || o.groupName;
+        const opt = o.option || o.optionName || o.name || '';
+        const extra = o.extra_price || o.extraPrice || 0;
+        const extraStr = extra > 0 ? ` (+${formatVND(extra)})` : '';
+        return group ? `${group}: ${opt}${extraStr}` : `${opt}${extraStr}`;
+      })
+      .filter(Boolean)
+      .join(', ');
+  };
+
 
   const getStatusTitle = (status) => {
     const statusMap = {
@@ -214,10 +250,10 @@ export default function OrderDetailScreen({ route, navigation }) {
         {renderTrackingTimeline()}
 
         {/* Real-time Tracking Map */}
-        {order.status !== 'CANCELLED' && (
+        {currentStatus !== 'CANCELLED' && (
           <TrackingMap 
             orderId={order.id} 
-            orderStatus={order.status}
+            orderStatus={currentStatus}
             deliveryAddress={order.deliveryAddress} 
             shopName={order.shopName} 
           />
@@ -262,21 +298,21 @@ export default function OrderDetailScreen({ route, navigation }) {
                 <Text style={styles.itemQtyText}>{item.quantity}x</Text>
               </View>
               <View style={styles.itemInfo}>
-                <Text style={styles.itemName}>{item.productName}</Text>
+                <Text style={styles.itemName}>{item.itemName || item.productName || item.name || 'Món ăn'}</Text>
                 {item.selectedOptions && item.selectedOptions.length > 0 && (
                   <Text style={styles.itemOptions}>
-                    {item.selectedOptions.map(o => o.optionName).join(', ')}
+                    {formatOptionText(item.selectedOptions)}
                   </Text>
                 )}
               </View>
-              <Text style={styles.itemPrice}>{formatVND(item.price * item.quantity)}</Text>
+              <Text style={styles.itemPrice}>{formatVND(item.totalPrice || (item.unitPrice || item.price || 0) * item.quantity)}</Text>
             </View>
           ))}
           
           <View style={styles.divider} />
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Tạm tính</Text>
-            <Text style={styles.summaryValue}>{formatVND(order.totalAmount - (order.deliveryFee || 0))}</Text>
+            <Text style={styles.summaryValue}>{formatVND(order.subtotal || (order.totalAmount - (order.deliveryFee || 0)))}</Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Phí giao hàng</Text>
@@ -289,8 +325,75 @@ export default function OrderDetailScreen({ route, navigation }) {
           </View>
         </View>
 
-        {/* Action Button: Đánh giá */}
-        {isCompleted && (
+        {/* Action Button / Reviewed summary */}
+        {isCompleted && hasReviewed && existingReview && (
+          <View style={styles.reviewedCard}>
+            <View style={styles.reviewedHeader}>
+              <View style={styles.reviewedIconBadge}>
+                <Star size={18} color="#10B981" fill="#10B981" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.reviewedTitle}>Cảm ơn bạn đã đánh giá!</Text>
+                <Text style={styles.reviewedSubtitle}>Đánh giá giúp cải thiện chất lượng dịch vụ</Text>
+              </View>
+            </View>
+
+            <View style={styles.reviewedBody}>
+              {/* Quán */}
+              <View style={styles.reviewedItemRow}>
+                <Text style={styles.reviewedLabel}>Cửa hàng ({order.shopName || "Quán"}):</Text>
+                <View style={styles.starsCompact}>
+                  {[...Array(existingReview.shopRating || 5)].map((_, i) => (
+                    <Star key={i} size={15} color="#F59E0B" fill="#F59E0B" />
+                  ))}
+                </View>
+              </View>
+              {existingReview.shopComment ? (
+                <Text style={styles.reviewedComment}>"{existingReview.shopComment}"</Text>
+              ) : null}
+
+              {/* Tài xế */}
+              <View style={[styles.reviewedItemRow, { marginTop: 10 }]}>
+                <Text style={styles.reviewedLabel}>Tài xế giao hàng:</Text>
+                <View style={styles.starsCompact}>
+                  {[...Array(existingReview.shipperRating || 5)].map((_, i) => (
+                    <Star key={i} size={15} color="#F59E0B" fill="#F59E0B" />
+                  ))}
+                </View>
+              </View>
+              {existingReview.shipperComment ? (
+                <Text style={styles.reviewedComment}>"{existingReview.shipperComment}"</Text>
+              ) : null}
+
+              {/* Món ăn */}
+              {productReviewsData && productReviewsData.length > 0 && (
+                <View style={styles.productReviewsWrapper}>
+                  <Text style={styles.productReviewHeading}>Món ăn:</Text>
+                  {productReviewsData.map((pr, idx) => {
+                    const item = order.items?.find(i => (i.itemId || i.productId || i.id) === pr.productId);
+                    return (
+                      <View key={pr.id || idx} style={styles.productReviewRow}>
+                        <View style={styles.reviewedItemRow}>
+                          <Text style={styles.productNameReview}>{item?.itemName || item?.productName || "Sản phẩm"}</Text>
+                          <View style={styles.starsCompact}>
+                            {[...Array(pr.rating || 5)].map((_, i) => (
+                              <Star key={i} size={13} color="#F59E0B" fill="#F59E0B" />
+                            ))}
+                          </View>
+                        </View>
+                        {pr.comment ? (
+                          <Text style={styles.productCommentReview}>"{pr.comment}"</Text>
+                        ) : null}
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          </View>
+        )}
+
+        {isCompleted && !hasReviewed && (
           <TouchableOpacity 
             style={styles.reviewBtn}
             onPress={() => setReviewModalVisible(true)}
@@ -306,6 +409,7 @@ export default function OrderDetailScreen({ route, navigation }) {
           visible={reviewModalVisible}
           order={order}
           onClose={() => setReviewModalVisible(false)}
+          onSuccess={() => checkReviewStatus(orderId)}
         />
       )}
     </SafeAreaView>
@@ -490,5 +594,99 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
     color: '#111827',
+  },
+  reviewedCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  reviewedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  reviewedIconBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#ECFDF5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  reviewedTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  reviewedSubtitle: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  reviewedBody: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 12,
+  },
+  reviewedItemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  reviewedLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    flex: 1,
+  },
+  starsCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  reviewedComment: {
+    fontSize: 13,
+    color: '#4B5563',
+    fontStyle: 'italic',
+    marginTop: 4,
+    marginLeft: 8,
+  },
+  productReviewsWrapper: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  productReviewHeading: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 8,
+  },
+  productReviewRow: {
+    backgroundColor: '#FFFFFF',
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+    marginBottom: 6,
+  },
+  productNameReview: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1F2937',
+    flex: 1,
+  },
+  productCommentReview: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontStyle: 'italic',
+    marginTop: 3,
   },
 });

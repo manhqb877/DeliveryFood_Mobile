@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   ShoppingBasket,
   Trash2,
@@ -19,6 +20,7 @@ import {
   Plus,
   Minus,
   ArrowRight,
+  ArrowLeft,
   Store,
 } from 'lucide-react-native';
 import { useCart } from '../../context/CartContext';
@@ -38,6 +40,12 @@ export default function CartScreen({ navigation }) {
     clearCart,
     refreshCart,
   } = useCart();
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshCart();
+    }, [refreshCart])
+  );
 
   // Edit item state
   const [editingItem, setEditingItem] = useState(null);
@@ -129,7 +137,20 @@ export default function CartScreen({ navigation }) {
       {/* Top Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <ShoppingBasket size={24} color="#D97706" />
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => {
+              if (navigation.canGoBack()) {
+                navigation.goBack();
+              } else {
+                navigation.navigate('Trang chủ');
+              }
+            }}
+            activeOpacity={0.7}
+          >
+            <ArrowLeft size={22} color="#111827" />
+          </TouchableOpacity>
+          <ShoppingBasket size={22} color="#D97706" style={{ marginLeft: 6 }} />
           <Text style={styles.headerTitle}>Giỏ hàng</Text>
           {totalCount > 0 && (
             <View style={styles.badge}>
@@ -207,6 +228,7 @@ export default function CartScreen({ navigation }) {
                             'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300&auto=format&fit=crop&q=80',
                         }}
                         style={styles.itemImage}
+                        resizeMode="contain"
                       />
 
                       {/* Info */}
@@ -334,6 +356,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  backBtn: {
+    padding: 6,
+    marginRight: 4,
+    borderRadius: 8,
+  },
   headerTitle: {
     fontSize: 24,
     fontWeight: '900',
@@ -455,7 +482,6 @@ const styles = StyleSheet.create({
     height: 68,
     borderRadius: 10,
     backgroundColor: '#F3F4F6',
-    resizeMode: 'contain',
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },

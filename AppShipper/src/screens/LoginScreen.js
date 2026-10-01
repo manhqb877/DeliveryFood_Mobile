@@ -51,7 +51,7 @@ export default function LoginScreen({ navigation }) {
             <Text style={styles.label}>Số điện thoại</Text>
             <TextInput
               style={styles.input}
-              placeholder="VD: 0901234567"
+              placeholder="0901234567"
               placeholderTextColor="#aaa"
               keyboardType="phone-pad"
               value={phone}

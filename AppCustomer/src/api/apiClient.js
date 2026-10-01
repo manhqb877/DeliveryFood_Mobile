@@ -1,15 +1,16 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const GATEWAY_URL = 'http://10.62.148.11:8080';
+export const GATEWAY_URL = 'https://unentwined-johanne-biasedly.ngrok-free.dev';
 const BASE_URL = `${GATEWAY_URL}/api/v1`;
 
 const apiClient = axios.create({
   baseURL: BASE_URL,
-  timeout: 10000,
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
-    'Bypass-Tunnel-Reminder': 'true'
+    'Bypass-Tunnel-Reminder': 'true',
+    'ngrok-skip-browser-warning': 'true',
   },
 });
 
@@ -39,11 +40,20 @@ apiClient.interceptors.request.use(async (config) => {
   return config;
 });
 
+let unauthorizedHandler = null;
+
+export const setOnUnauthorized = (handler) => {
+  unauthorizedHandler = handler;
+};
+
 // Interceptor xử lý lỗi 401 (hết hạn token)
 apiClient.interceptors.response.use(
   (res) => {
     if (res.data && res.data.status >= 400) {
-      return Promise.reject({ response: res });
+      const err = new Error(res.data.message || res.data.error || 'Yêu cầu thất bại');
+      err.response = res;
+      err.status = res.data.status;
+      return Promise.reject(err);
     }
     return res.data;
   },
@@ -51,6 +61,9 @@ apiClient.interceptors.response.use(
     if (err.response?.status === 401 || err.response?.data?.status === 401) {
       await AsyncStorage.removeItem('customer_token');
       await AsyncStorage.removeItem('customer_user');
+      if (unauthorizedHandler) {
+        unauthorizedHandler();
+      }
     }
     return Promise.reject(err);
   }

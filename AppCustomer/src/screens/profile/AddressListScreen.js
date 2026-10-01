@@ -178,7 +178,7 @@ export default function AddressListScreen({ navigation }) {
             <Text style={styles.inputLabel}>Chi tiết địa chỉ (Số nhà, đường, toà nhà, khu vực)</Text>
             <TextInput
               style={styles.modalInput}
-              placeholder="Ví dụ: KTX Khu B ĐHQG, Linh Trung, Thủ Đức"
+              placeholder="KTX Khu B ĐHQG, Linh Trung, Thủ Đức"
               placeholderTextColor="#9CA3AF"
               multiline
               numberOfLines={3}

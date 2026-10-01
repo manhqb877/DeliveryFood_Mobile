@@ -11,7 +11,7 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
-import { X, Plus, Minus, ShoppingBasket, Check } from 'lucide-react-native';
+import { X, Plus, Minus, ShoppingBasket, Check, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { height } = Dimensions.get('window');
@@ -36,6 +36,7 @@ export default function ProductOptionModal({
   const [quantity, setQuantity] = useState(1);
   const [selectedOptions, setSelectedOptions] = useState({});
   const [itemNote, setItemNote] = useState('');
+  const [expandedGroups, setExpandedGroups] = useState({});
 
   const isEditMode = !!editingItem;
 
@@ -57,32 +58,49 @@ export default function ProductOptionModal({
         });
 
         // Ensure single required options have selection
+        const initialExpanded = {};
         Object.keys(optionGroups).forEach((groupName) => {
           const group = optionGroups[groupName];
-          if (group.length > 0 && group[0].isRequired && !group[0].isMultiple && (!opts[groupName] || opts[groupName].length === 0)) {
+          const isReq = group.length > 0 && group[0].isRequired;
+          if (isReq && !group[0].isMultiple && (!opts[groupName] || opts[groupName].length === 0)) {
             opts[groupName] = [group[0].id];
           }
+          const hasSelected = opts[groupName] && opts[groupName].length > 0;
+          initialExpanded[groupName] = isReq || hasSelected;
         });
         setSelectedOptions(opts);
+        setExpandedGroups(initialExpanded);
       } else {
         setQuantity(1);
         setItemNote('');
         const initialOptions = {};
+        const initialExpanded = {};
         const optionGroups = groupBy(product.options || [], 'groupName');
 
         Object.keys(optionGroups).forEach((groupName) => {
           const group = optionGroups[groupName];
-          if (group.length > 0 && group[0].isRequired && !group[0].isMultiple) {
+          const isReq = group.length > 0 && group[0].isRequired;
+          if (isReq && !group[0].isMultiple) {
             initialOptions[groupName] = [group[0].id];
           } else {
             initialOptions[groupName] = [];
           }
+          // Nhóm BẮT BUỘC thì mở sẵn; nhóm TÙY CHỌN (như Topping) thì thu gọn mặc định để gọn gàng
+          initialExpanded[groupName] = isReq;
         });
 
         setSelectedOptions(initialOptions);
+        setExpandedGroups(initialExpanded);
       }
     }
   }, [visible, product, editingItem]);
+
+  const toggleGroupExpand = (groupName) => {
+    setExpandedGroups((prev) => ({
+      ...prev,
+      [groupName]: !prev[groupName],
+    }));
+  };
 
   if (!product) return null;
 
@@ -199,6 +217,7 @@ export default function ProductOptionModal({
                     'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop&q=80',
                 }}
                 style={styles.productImage}
+                resizeMode="contain"
               />
               {product.priceName ? (
                 <View style={styles.priceTagBadge}>
@@ -225,7 +244,7 @@ export default function ProductOptionModal({
               <Text style={styles.noteLabel}>Ghi chú cho quán (nếu có)</Text>
               <TextInput
                 style={styles.noteInput}
-                placeholder="VD: Không hành, ít đá, bỏ tương ớt riêng..."
+                placeholder="Không hành, ít đá, bỏ tương ớt riêng..."
                 placeholderTextColor="#9CA3AF"
                 value={itemNote}
                 onChangeText={setItemNote}
@@ -244,70 +263,151 @@ export default function ProductOptionModal({
                   const isRequired = options[0]?.isRequired;
                   const isMultiple = options[0]?.isMultiple;
                   const selectedInGroup = selectedOptions[groupName] || [];
+                  const isExpanded = !!expandedGroups[groupName];
+                  const selectedCount = selectedInGroup.length;
+                  const selectedNames = options
+                    .filter((o) => selectedInGroup.includes(o.id))
+                    .map((o) => o.optionName)
+                    .join(', ');
 
                   return (
                     <View key={groupName} style={styles.optionGroup}>
-                      <View style={styles.groupHeader}>
+                      {/* Tiêu đề nhóm có thể click để đóng / mở */}
+                      <TouchableOpacity
+                        style={styles.groupHeader}
+                        onPress={() => toggleGroupExpand(groupName)}
+                        activeOpacity={0.7}
+                      >
+                        <View style={{ flex: 1, paddingRight: 8 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Text style={styles.groupTitle}>{groupName}</Text>
+                            {isRequired ? (
+                              <View style={styles.requiredBadge}>
+                                <Text style={styles.requiredText}>BẮT BUỘC</Text>
+                              </View>
+                            ) : (
+                              <View style={styles.optionalBadge}>
+                                <Text style={styles.optionalText}>TÙY CHỌN</Text>
+                              </View>
+                            )}
+                          </View>
+                          <Text style={styles.groupSub}>
+                            {isMultiple ? 'Chọn nhiều' : 'Chọn 1'}
+                            {selectedCount > 0 ? ` · Đã chọn ${selectedCount}` : ''}
+                          </Text>
+                        </View>
+
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                          <Text style={styles.groupTitle}>{groupName}</Text>
-                          {isRequired && (
-                            <View style={styles.requiredBadge}>
-                              <Text style={styles.requiredText}>BẮT BUỘC</Text>
+                          {!isExpanded && selectedCount === 0 && (
+                            <View style={styles.expandPill}>
+                              <Text style={styles.expandPillText}>+{options.length} tùy chọn</Text>
                             </View>
                           )}
+                          {!isExpanded && selectedCount > 0 && (
+                            <View style={styles.selectedPill}>
+                              <Text style={styles.selectedPillText}>Đã chọn {selectedCount}</Text>
+                            </View>
+                          )}
+                          {isExpanded ? (
+                            <ChevronUp size={20} color="#6B7280" style={{ marginLeft: 6 }} />
+                          ) : (
+                            <ChevronDown size={20} color="#D97706" style={{ marginLeft: 6 }} />
+                          )}
                         </View>
-                        <Text style={styles.groupSub}>
-                          {isMultiple ? 'Chọn nhiều' : 'Chọn 1'}
-                        </Text>
-                      </View>
+                      </TouchableOpacity>
 
-                      <View style={styles.optionsList}>
-                        {options.map((option) => {
-                          const isSelected = selectedInGroup.includes(option.id);
-                          return (
+                      {/* Tóm tắt các món đã chọn khi đang đóng -> Bấm để mở lại và thay đổi */}
+                      {!isExpanded && selectedCount > 0 && (
+                        <TouchableOpacity
+                          style={styles.selectedSummaryBar}
+                          onPress={() => toggleGroupExpand(groupName)}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={styles.selectedSummaryText} numberOfLines={1}>
+                            ✓ {selectedNames}
+                          </Text>
+                          <Text style={styles.changeSelectionText}>Thay đổi ▾</Text>
+                        </TouchableOpacity>
+                      )}
+
+                      {/* Nút bấm mở nhanh danh sách khi đang thu gọn và CHƯA chọn món nào */}
+                      {!isExpanded && selectedCount === 0 && (
+                        <TouchableOpacity
+                          style={styles.openExpandBtn}
+                          onPress={() => toggleGroupExpand(groupName)}
+                          activeOpacity={0.8}
+                        >
+                          <Plus size={14} color="#D97706" style={{ marginRight: 6 }} />
+                          <Text style={styles.openExpandBtnText}>
+                            Bấm để chọn {groupName.toLowerCase()} ({options.length} món)
+                          </Text>
+                          <ChevronDown size={14} color="#D97706" style={{ marginLeft: 6 }} />
+                        </TouchableOpacity>
+                      )}
+
+                      {/* Danh sách các tùy chọn khi được mở ra */}
+                      {isExpanded && (
+                        <View style={styles.optionsList}>
+                          {options.map((option) => {
+                            const isSelected = selectedInGroup.includes(option.id);
+                            return (
+                              <TouchableOpacity
+                                key={option.id}
+                                style={[styles.optionItem, isSelected && styles.optionItemSelected]}
+                                onPress={() => handleOptionChange(groupName, option, isMultiple)}
+                                activeOpacity={0.7}
+                              >
+                                <View style={styles.optionLeft}>
+                                  <View
+                                    style={[
+                                      styles.radioOuter,
+                                      isMultiple && styles.checkboxOuter,
+                                      isSelected && styles.radioOuterSelected,
+                                    ]}
+                                  >
+                                    {isSelected && (
+                                      <View
+                                        style={[
+                                          styles.radioInner,
+                                          isMultiple && styles.checkboxInner,
+                                        ]}
+                                      >
+                                        {isMultiple && <Check size={12} color="#FFFFFF" />}
+                                      </View>
+                                    )}
+                                  </View>
+                                  <Text
+                                    style={[
+                                      styles.optionName,
+                                      isSelected && styles.optionNameSelected,
+                                    ]}
+                                  >
+                                    {option.optionName}
+                                  </Text>
+                                </View>
+                                {option.extraPrice > 0 ? (
+                                  <Text style={styles.optionPrice}>
+                                    +{formatVND(option.extraPrice)}
+                                  </Text>
+                                ) : null}
+                              </TouchableOpacity>
+                            );
+                          })}
+
+                          {options.length > 3 && (
                             <TouchableOpacity
-                              key={option.id}
-                              style={[styles.optionItem, isSelected && styles.optionItemSelected]}
-                              onPress={() => handleOptionChange(groupName, option, isMultiple)}
+                              style={styles.collapseGroupBtn}
+                              onPress={() => toggleGroupExpand(groupName)}
                               activeOpacity={0.7}
                             >
-                              <View style={styles.optionLeft}>
-                                <View
-                                  style={[
-                                    styles.radioOuter,
-                                    isMultiple && styles.checkboxOuter,
-                                    isSelected && styles.radioOuterSelected,
-                                  ]}
-                                >
-                                  {isSelected && (
-                                    <View
-                                      style={[
-                                        styles.radioInner,
-                                        isMultiple && styles.checkboxInner,
-                                      ]}
-                                    >
-                                      {isMultiple && <Check size={12} color="#FFFFFF" />}
-                                    </View>
-                                  )}
-                                </View>
-                                <Text
-                                  style={[
-                                    styles.optionName,
-                                    isSelected && styles.optionNameSelected,
-                                  ]}
-                                >
-                                  {option.optionName}
-                                </Text>
-                              </View>
-                              {option.extraPrice > 0 ? (
-                                <Text style={styles.optionPrice}>
-                                  +{formatVND(option.extraPrice)}
-                                </Text>
-                              ) : null}
+                              <Text style={styles.collapseGroupBtnText}>
+                                Thu gọn danh sách {groupName.toLowerCase()}
+                              </Text>
+                              <ChevronUp size={15} color="#6B7280" style={{ marginLeft: 4 }} />
                             </TouchableOpacity>
-                          );
-                        })}
-                      </View>
+                          )}
+                        </View>
+                      )}
                     </View>
                   );
                 })
@@ -362,14 +462,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
+    alignItems: 'center',
   },
   modalContent: {
+    width: '100%',
+    maxWidth: 480,
+    alignSelf: 'center',
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: height * 0.76,
     minHeight: height * 0.45,
     overflow: 'hidden',
+    position: 'relative',
   },
   closeBtn: {
     position: 'absolute',
@@ -399,7 +504,6 @@ const styles = StyleSheet.create({
   productImage: {
     width: '90%',
     height: '90%',
-    resizeMode: 'contain',
   },
   priceTagBadge: {
     position: 'absolute',
@@ -508,9 +612,101 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#D97706',
   },
+  optionalBadge: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 8,
+  },
+  optionalText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#6B7280',
+  },
   groupSub: {
     fontSize: 12,
     color: '#6B7280',
+  },
+  expandPill: {
+    backgroundColor: '#FFFBEB',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  expandPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#B45309',
+  },
+  selectedPill: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  selectedPillText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#B45309',
+  },
+  selectedSummaryBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: '#FDE68A',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    marginBottom: 8,
+  },
+  selectedSummaryText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#92400E',
+    flex: 1,
+  },
+  changeSelectionText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#D97706',
+    marginLeft: 8,
+  },
+  openExpandBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: '#FCD34D',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  openExpandBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#B45309',
+  },
+  collapseGroupBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+    backgroundColor: '#F9FAFB',
+  },
+  collapseGroupBtnText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '600',
   },
   optionsList: {
     backgroundColor: '#F9FAFB',
@@ -592,6 +788,9 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+    maxWidth: 480,
+    width: '100%',
+    alignSelf: 'center',
   },
   stepper: {
     flexDirection: 'row',

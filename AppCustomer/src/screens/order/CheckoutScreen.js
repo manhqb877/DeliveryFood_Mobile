@@ -38,7 +38,7 @@ import { paymentApi } from '../../api/paymentApi';
 
 export default function CheckoutScreen({ navigation }) {
   const { items, cartShop, cartId, activeCart, totalPrice, clearCart } = useCart();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   // Recipient form states
   const [fullName, setFullName] = useState(user?.fullName || user?.name || '');
@@ -74,7 +74,7 @@ export default function CheckoutScreen({ navigation }) {
   const [isPaid, setIsPaid] = useState(false);
   const [checkingPayment, setCheckingPayment] = useState(false);
 
-  // Polling payment status when QR modal is active
+  // Polling payment status when QR modal is active (Tự động nhận diện thanh toán giống bên Web)
   useEffect(() => {
     let timer;
     if (qrModalVisible && createdOrderData?.id && !isPaid) {
@@ -87,7 +87,7 @@ export default function CheckoutScreen({ navigation }) {
             clearInterval(timer);
           }
         } catch (_) {}
-      }, 3000);
+      }, 2000);
     }
     return () => clearInterval(timer);
   }, [qrModalVisible, createdOrderData?.id, isPaid]);
@@ -111,11 +111,17 @@ export default function CheckoutScreen({ navigation }) {
           parseAddressString(defaultAddr.addressLine);
         }
       } catch (err) {
-        console.error('Lỗi lấy địa chỉ:', err);
+        if (err.response?.status === 401) {
+          console.warn('Phiên đăng nhập đã hết hạn khi lấy địa chỉ');
+        } else {
+          console.error('Lỗi lấy địa chỉ:', err);
+        }
       }
     };
-    loadAddresses();
-  }, []);
+    if (user?.id) {
+      loadAddresses();
+    }
+  }, [user?.id]);
 
   const parseAddressString = (addrStr) => {
     if (!addrStr) return;
@@ -397,17 +403,21 @@ export default function CheckoutScreen({ navigation }) {
           ]
         );
       }
-    } catch (err) {
-      let errorMsg =
-        err.response?.data?.message ||
-        err.response?.data?.error ||
-        err.message ||
-        'Không thể tạo đơn. Vui lòng thử lại!';
-      
-      if (typeof errorMsg === 'object') {
-        errorMsg = JSON.stringify(errorMsg);
+      if (err.response?.status === 401 || String(errorMsg).includes('Unauthorized')) {
+        Alert.alert(
+          'Phiên làm việc hết hạn',
+          'Phiên đăng nhập của bạn đã hết hạn. Vui lòng đăng nhập lại để tiếp tục tạo đơn hàng!',
+          [
+            {
+              text: 'Đăng nhập lại',
+              onPress: () => logout(),
+            },
+          ]
+        );
+        setIsSubmitting(false);
+        return;
       }
-      
+
       // Fix triệt để: Nếu cart bị lỗi (stale/not found), tự động tạo lại cart mới và thử đặt hàng lại 1 lần
       if (String(errorMsg).includes('Cart not found')) {
         console.log('Phát hiện giỏ hàng hết hạn, đang tự động đồng bộ và thử lại...');
@@ -663,7 +673,7 @@ export default function CheckoutScreen({ navigation }) {
           </Text>
           <TextInput
             style={styles.textInput}
-            placeholder="VD: 42/3 Nguyễn Hữu Tiến"
+            placeholder="42/3 Nguyễn Hữu Tiến"
             placeholderTextColor="#9CA3AF"
             value={streetAddress}
             onChangeText={setStreetAddress}
@@ -673,7 +683,7 @@ export default function CheckoutScreen({ navigation }) {
           <Text style={styles.inputLabel}>Ghi chú cho tài xế giao hàng</Text>
           <TextInput
             style={[styles.textInput, styles.textArea]}
-            placeholder="VD: Giao trước sảnh lễ tân hoặc gọi trước khi tới..."
+            placeholder="Giao trước sảnh lễ tân hoặc gọi trước khi tới..."
             placeholderTextColor="#9CA3AF"
             multiline
             numberOfLines={2}
@@ -688,7 +698,7 @@ export default function CheckoutScreen({ navigation }) {
             <Text style={styles.cardHeading}>PHƯƠNG THỨC THANH TOÁN</Text>
             <View style={[styles.codTag, paymentMethod === 'ONLINE' ? { backgroundColor: '#EFF6FF' } : { backgroundColor: '#ECFDF5' }]}>
               <Text style={[styles.codTagText, paymentMethod === 'ONLINE' ? { color: '#1D4ED8' } : { color: '#047857' }]}>
-                {paymentMethod === 'ONLINE' ? '⚡ VietQR SePay' : '💵 COD Tiền Mặt'}
+                {paymentMethod === 'ONLINE' ? 'VietQR SePay' : '💵 COD Tiền Mặt'}
               </Text>
             </View>
           </View>
@@ -888,6 +898,7 @@ export default function CheckoutScreen({ navigation }) {
                     'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300&auto=format&fit=crop&q=80',
                 }}
                 style={styles.cartItemThumb}
+                resizeMode="contain"
               />
               <View style={styles.cartItemInfo}>
                 <Text style={styles.cartItemName}>{item.itemName}</Text>
@@ -962,7 +973,7 @@ export default function CheckoutScreen({ navigation }) {
             <ActivityIndicator color={paymentMethod === 'ONLINE' ? '#FFFFFF' : '#111827'} />
           ) : (
             <Text style={[styles.placeOrderBtnText, paymentMethod === 'ONLINE' && { color: '#FFFFFF' }]}>
-              {paymentMethod === 'ONLINE' ? '⚡ ĐẶT HÀNG & QUÉT MÃ QR' : '💵 ĐẶT HÀNG (COD)'}
+              {paymentMethod === 'ONLINE' ? 'ĐẶT HÀNG & QUÉT MÃ QR' : '💵 ĐẶT HÀNG (COD)'}
             </Text>
           )}
         </TouchableOpacity>
@@ -1055,38 +1066,8 @@ export default function CheckoutScreen({ navigation }) {
 
               {/* Action Buttons */}
               <View style={modalStyles.actionsWrap}>
-                {!isPaid && (
-                  <TouchableOpacity
-                    style={[modalStyles.checkBtn, checkingPayment && { opacity: 0.6 }]}
-                    onPress={async () => {
-                      if (!createdOrderData?.id) return;
-                      setCheckingPayment(true);
-                      try {
-                        const res = await paymentApi.getPaymentStatus(createdOrderData.id);
-                        const st = res?.data?.status || res?.status;
-                        if (st === 'SUCCESS' || st === 'PAID') {
-                          setIsPaid(true);
-                        } else {
-                          Alert.alert('Chờ xác nhận', 'Hệ thống chưa ghi nhận tiền vào tài khoản. Vui lòng đợi 10-30s sau khi chuyển khoản nhé!');
-                        }
-                      } catch (_) {
-                        Alert.alert('Thông báo', 'Đang kết nối lại hệ thống...');
-                      } finally {
-                        setCheckingPayment(false);
-                      }
-                    }}
-                    disabled={checkingPayment}
-                    activeOpacity={0.8}
-                  >
-                    <RefreshCw size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
-                    <Text style={modalStyles.checkBtnText}>
-                      {checkingPayment ? 'Đang kiểm tra...' : 'Tôi đã chuyển khoản'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-
                 <TouchableOpacity
-                  style={modalStyles.orderDetailBtn}
+                  style={[modalStyles.orderDetailBtn, isPaid && modalStyles.orderDetailBtnSuccess]}
                   onPress={() => {
                     setQrModalVisible(false);
                     if (createdOrderData?.id) {
@@ -1095,7 +1076,9 @@ export default function CheckoutScreen({ navigation }) {
                   }}
                   activeOpacity={0.8}
                 >
-                  <Text style={modalStyles.orderDetailBtnText}>Xem chi tiết đơn hàng</Text>
+                  <Text style={[modalStyles.orderDetailBtnText, isPaid && { color: '#FFFFFF', fontWeight: '800' }]}>
+                    {isPaid ? 'Xem chi tiết đơn hàng 🎉' : 'Xem chi tiết đơn hàng'}
+                  </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -1119,8 +1102,12 @@ const modalStyles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'flex-end',
+    alignItems: 'center',
   },
   modalCard: {
+    width: '100%',
+    maxWidth: 480,
+    alignSelf: 'center',
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
@@ -1269,6 +1256,10 @@ const modalStyles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 14,
     alignItems: 'center',
+  },
+  orderDetailBtnSuccess: {
+    backgroundColor: '#16A34A',
+    paddingVertical: 14,
   },
   orderDetailBtnText: {
     color: '#374151',
@@ -1666,7 +1657,6 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 8,
     backgroundColor: '#F3F4F6',
-    resizeMode: 'contain',
   },
   cartItemInfo: {
     flex: 1,

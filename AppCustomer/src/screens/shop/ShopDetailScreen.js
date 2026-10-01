@@ -77,11 +77,16 @@ export default function ShopDetailScreen({ route, navigation }) {
           if (data.categories) {
             setCategories(data.categories);
           }
-          if (data.shop) {
-            setShop(data.shop);
-          } else if (data.name) {
-            setShop(data);
-          }
+          const realShop = data.shop || data;
+          setShop((prev) => ({
+            ...prev,
+            ...realShop,
+            shopName: realShop.shopName || realShop.name || prev?.shopName,
+            locationDetail: realShop.locationDetail || realShop.address || prev?.locationDetail,
+            avgRating: realShop.avgRating || realShop.rating || prev?.avgRating,
+            coverImageUrl: realShop.coverImageUrl || realShop.coverUrl || prev?.coverImageUrl,
+            logoUrl: realShop.logoUrl || prev?.logoUrl,
+          }));
         }
       } catch (err) {
         console.error('Lỗi lấy chi tiết quán:', err);
@@ -162,7 +167,7 @@ export default function ShopDetailScreen({ route, navigation }) {
 
         {/* Shop Info Card */}
         <View style={styles.shopCard}>
-          <Text style={styles.shopName}>{shop?.shopName || shop?.name || 'Quán Ăn Ngon'}</Text>
+          <Text style={styles.shopName}>{shop?.shopName || shop?.name || 'Chi tiết quán ăn'}</Text>
           <View style={styles.metaRow}>
             <View style={styles.ratingBadge}>
               <Star size={14} color="#F59E0B" fill="#F59E0B" />
@@ -181,7 +186,7 @@ export default function ShopDetailScreen({ route, navigation }) {
           <View style={styles.addressRow}>
             <MapPin size={14} color="#9CA3AF" style={{ marginRight: 4 }} />
             <Text style={styles.addressText} numberOfLines={2}>
-              {shop?.locationDetail || shop?.address || 'Khu đô thị Đại học Quốc Gia, TP. Hồ Chí Minh'}
+              {shop?.locationDetail || shop?.address || 'TP. Hồ Chí Minh'}
             </Text>
           </View>
           

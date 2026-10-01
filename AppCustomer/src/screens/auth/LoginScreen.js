@@ -12,7 +12,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Phone, Lock, Eye, EyeOff, Utensils } from 'lucide-react-native';
+import { Phone, Lock, Eye, EyeOff, Utensils, AlertCircle } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 
 export default function LoginScreen({ navigation }) {
@@ -25,34 +25,57 @@ export default function LoginScreen({ navigation }) {
   const handleLogin = async () => {
     setErrorMsg('');
     if (!identifier.trim()) {
-      setErrorMsg('Vui lòng nhập số điện thoại hoặc email');
+      const m = 'Vui lòng nhập số điện thoại hoặc email';
+      setErrorMsg(m);
+      if (Platform.OS === 'web' && typeof window !== 'undefined') window.alert(m);
+      else Alert.alert('Thông báo', m);
       return;
     }
     if (!password) {
-      setErrorMsg('Vui lòng nhập mật khẩu');
+      const m = 'Vui lòng nhập mật khẩu';
+      setErrorMsg(m);
+      if (Platform.OS === 'web' && typeof window !== 'undefined') window.alert(m);
+      else Alert.alert('Thông báo', m);
       return;
     }
 
     try {
-      await login({ identifier, password });
+      await login({ identifier: identifier.trim(), password });
     } catch (err) {
       console.log('Login error:', err);
       let msg = 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin!';
       
-      if (err.response?.data?.message) {
-        msg = err.response.data.message;
-      } else if (err.message) {
-        if (err.message.toLowerCase().includes('timeout')) {
-          msg = 'Không thể kết nối đến máy chủ. Vui lòng thử lại sau!';
-        } else if (err.message.includes('Network Error')) {
-          msg = 'Lỗi mạng. Vui lòng kiểm tra kết nối internet!';
-        } else if (err.message.includes('401') || (err.response && err.response.status === 401)) {
-          msg = 'Sai số điện thoại/email hoặc mật khẩu!';
-        } else {
-          msg = err.message;
-        }
+      const serverStatus = err.response?.data?.status || err.status;
+      const rawMsg = (err.response?.data?.message || err.response?.data?.error || err.message || '').toString();
+
+      if (
+        serverStatus === 1002 ||
+        rawMsg.toLowerCase().includes('incorrect') ||
+        rawMsg.toLowerCase().includes('invalid') ||
+        rawMsg.toLowerCase().includes('sai') ||
+        rawMsg.includes('401')
+      ) {
+        msg = 'Số điện thoại/Email hoặc mật khẩu không chính xác!';
+      } else if (serverStatus === 1001 || rawMsg.toLowerCase().includes('not found')) {
+        msg = 'Không tìm thấy tài khoản với thông tin đã nhập!';
+      } else if (serverStatus === 1005 || rawMsg.toLowerCase().includes('locked')) {
+        msg = 'Tài khoản của bạn đã bị tạm khóa. Vui lòng liên hệ hỗ trợ!';
+      } else if (serverStatus === 1006 || rawMsg.toLowerCase().includes('pending')) {
+        msg = 'Tài khoản đang chờ kích hoạt!';
+      } else if (rawMsg.toLowerCase().includes('timeout') || rawMsg.toLowerCase().includes('kết nối')) {
+        msg = 'Không thể kết nối đến máy chủ. Vui lòng thử lại sau!';
+      } else if (rawMsg.toLowerCase().includes('network error')) {
+        msg = 'Lỗi kết nối mạng. Vui lòng kiểm tra internet!';
+      } else if (rawMsg && !rawMsg.includes('Request failed') && !rawMsg.includes('Yêu cầu thất bại')) {
+        msg = rawMsg;
       }
+
       setErrorMsg(msg);
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.alert(msg);
+      } else {
+        Alert.alert('Đăng nhập thất bại', msg);
+      }
     }
   };
 
@@ -85,6 +108,7 @@ export default function LoginScreen({ navigation }) {
             {/* Error banner */}
             {errorMsg ? (
               <View style={styles.errorBox}>
+                <AlertCircle size={20} color="#DC2626" style={{ marginRight: 8 }} />
                 <Text style={styles.errorText}>{errorMsg}</Text>
               </View>
             ) : null}
@@ -92,11 +116,11 @@ export default function LoginScreen({ navigation }) {
             {/* Input Phone/Email */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Số điện thoại hoặc Email</Text>
-              <View style={styles.inputWrapper}>
-                <Phone size={20} color="#6B7280" style={styles.inputIcon} />
+              <View style={[styles.inputWrapper, !!errorMsg && styles.inputWrapperError]}>
+                <Phone size={20} color={errorMsg ? '#EF4444' : '#6B7280'} style={styles.inputIcon} />
                 <TextInput
                   style={styles.textInput}
-                  placeholder="Ví dụ: 0987654321 hoặc email@..."
+                  placeholder="0987654321 hoặc email@..."
                   placeholderTextColor="#9CA3AF"
                   autoCapitalize="none"
                   value={identifier}
@@ -111,8 +135,8 @@ export default function LoginScreen({ navigation }) {
             {/* Input Password */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Mật khẩu</Text>
-              <View style={styles.inputWrapper}>
-                <Lock size={20} color="#6B7280" style={styles.inputIcon} />
+              <View style={[styles.inputWrapper, !!errorMsg && styles.inputWrapperError]}>
+                <Lock size={20} color={errorMsg ? '#EF4444' : '#6B7280'} style={styles.inputIcon} />
                 <TextInput
                   style={styles.textInput}
                   placeholder="Nhập mật khẩu"
@@ -136,6 +160,14 @@ export default function LoginScreen({ navigation }) {
                 </TouchableOpacity>
               </View>
             </View>
+
+            {/* Notice right above button if error */}
+            {errorMsg ? (
+              <View style={styles.btnErrorNotice}>
+                <AlertCircle size={15} color="#DC2626" style={{ marginRight: 6 }} />
+                <Text style={styles.btnErrorNoticeText}>{errorMsg}</Text>
+              </View>
+            ) : null}
 
             {/* Submit Button */}
             <TouchableOpacity
@@ -239,17 +271,43 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   errorBox: {
-    backgroundColor: '#FEE2E2',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
     borderLeftWidth: 4,
     borderLeftColor: '#EF4444',
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 10,
     marginBottom: 16,
   },
   errorText: {
+    color: '#B91C1C',
+    fontSize: 13,
+    fontWeight: '700',
+    flex: 1,
+  },
+  btnErrorNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    backgroundColor: '#FEF2F2',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  btnErrorNoticeText: {
     color: '#DC2626',
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: '700',
+  },
+  inputWrapperError: {
+    borderColor: '#EF4444',
+    backgroundColor: '#FEF2F2',
   },
   inputGroup: {
     marginBottom: 16,

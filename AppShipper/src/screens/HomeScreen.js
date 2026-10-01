@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
+import { useFocusEffect } from '@react-navigation/native';
 import { useShipper } from '../context/ShipperContext';
 import apiClient from '../lib/apiClient';
 import { startBackgroundTracking, stopBackgroundTracking } from '../lib/backgroundLocation';
@@ -67,6 +68,12 @@ export default function HomeScreen({ navigation }) {
   useEffect(() => {
     fetchDeliveries();
   }, [fetchDeliveries]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchDeliveries();
+    }, [fetchDeliveries])
+  );
 
   const filteredDeliveries = deliveries.filter(d => {
     if (selectedTab === 'AVAILABLE') return !d._mine;

@@ -26,7 +26,8 @@ export default function TrackingMap({ orderId, orderStatus, deliveryAddress, sho
   const [loading, setLoading] = useState(true);
   const mapRef = useRef(null);
   const iframeRef = useRef(null);
-  const routesFetchedRef = useRef(false);
+  const shopRouteFetchedRef = useRef(false);
+  const customerRouteFetchedRef = useRef(false);
 
   // Fallback coordinates (TP.HCM)
   const defaultPickup = { lat: 10.7733, lng: 106.6977 };
@@ -54,7 +55,7 @@ export default function TrackingMap({ orderId, orderStatus, deliveryAddress, sho
     } catch (e) {
       console.warn('Vietmap route error:', e);
     }
-    return [];
+    return [[from.lat, from.lng], [to.lat, to.lng]];
   };
 
   // 1. Fetch thông tin Delivery của đơn hàng & Polling real-time
@@ -119,18 +120,15 @@ export default function TrackingMap({ orderId, orderStatus, deliveryAddress, sho
     return () => clearInterval(intervalId);
   }, [orderId]);
 
-  // 2. Fetch tuyến đường đường đi (Fetch 1 lần duy nhất khi đủ toạ độ, y hệt bản Web)
+  // Tuyến Shop -> Customer (Màu cam)
   useEffect(() => {
-    let isMounted = true;
+    if (customerRouteFetchedRef.current) return;
+    if (!pickup.lat || !delivery.lat) return;
 
-    const loadRoutes = async () => {
-      if (routesFetchedRef.current) return;
-      if (!pickup.lat || !delivery.lat) return;
-
-      // Tuyến 1: Shop -> Customer (Màu cam)
-      const route1 = await fetchVietmapRoute(pickup, delivery);
-      if (isMounted && route1.length > 0) {
+    fetchVietmapRoute(pickup, delivery).then((route1) => {
+      if (route1 && route1.length > 0) {
         setRouteShopToCustomer(route1);
+        customerRouteFetchedRef.current = true;
         if (iframeRef.current?.contentWindow) {
           iframeRef.current.contentWindow.postMessage({
             type: 'SET_ROUTE_CUSTOMER',
@@ -138,12 +136,18 @@ export default function TrackingMap({ orderId, orderStatus, deliveryAddress, sho
           }, '*');
         }
       }
+    });
+  }, [pickup.lat, pickup.lng, delivery.lat, delivery.lng]);
 
-      // Tuyến 2: Shipper -> Shop (Màu xanh)
-      const startLoc = shipperLocation || { lat: pickup.lat - 0.015, lng: pickup.lng - 0.015 };
-      const route2 = await fetchVietmapRoute(startLoc, pickup);
-      if (isMounted && route2.length > 0) {
+  // Tuyến Shipper -> Shop (Màu xanh) khi có Shipper
+  useEffect(() => {
+    if (!shipperLocation?.lat || !pickup.lat) return;
+    if (shopRouteFetchedRef.current) return;
+
+    fetchVietmapRoute(shipperLocation, pickup).then((route2) => {
+      if (route2 && route2.length > 0) {
         setRouteShipperToShop(route2);
+        shopRouteFetchedRef.current = true;
         if (iframeRef.current?.contentWindow) {
           iframeRef.current.contentWindow.postMessage({
             type: 'SET_ROUTE_SHOP',
@@ -151,15 +155,43 @@ export default function TrackingMap({ orderId, orderStatus, deliveryAddress, sho
           }, '*');
         }
       }
+    });
+  }, [shipperLocation?.lat, shipperLocation?.lng, pickup.lat, pickup.lng]);
 
-      if (route1.length > 0) {
-        routesFetchedRef.current = true;
+  // Lắng nghe IFRAME_READY từ iframe để đồng bộ ngay khi iframe sẵn sàng
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+
+    const handleWindowMsg = (event) => {
+      if (event.data?.type === 'IFRAME_READY' && iframeRef.current?.contentWindow) {
+        const cw = iframeRef.current.contentWindow;
+        if (deliveryData?.shipperId) {
+          cw.postMessage({
+            type: 'SET_SHIPPER_ID',
+            shipperId: deliveryData.shipperId,
+            shipperName: shipperName || 'Tài xế',
+          }, '*');
+        }
+        if (routeShopToCustomer.length > 0) {
+          cw.postMessage({ type: 'SET_ROUTE_CUSTOMER', route: routeShopToCustomer }, '*');
+        }
+        if (routeShipperToShop.length > 0) {
+          cw.postMessage({ type: 'SET_ROUTE_SHOP', route: routeShipperToShop }, '*');
+        }
+        if (shipperLocation?.lat && shipperLocation?.lng) {
+          cw.postMessage({
+            type: 'UPDATE_LOCATION',
+            lat: shipperLocation.lat,
+            lng: shipperLocation.lng,
+            name: shipperName || 'Tài xế',
+          }, '*');
+        }
       }
     };
 
-    loadRoutes();
-    return () => { isMounted = false; };
-  }, [pickup.lat, pickup.lng, delivery.lat, delivery.lng, shipperLocation?.lat, shipperLocation?.lng]);
+    window.addEventListener('message', handleWindowMsg);
+    return () => window.removeEventListener('message', handleWindowMsg);
+  }, [deliveryData?.shipperId, shipperName, routeShopToCustomer, routeShipperToShop, shipperLocation]);
 
   // Auto-fit coordinates trên Mobile MapView
   useEffect(() => {
@@ -343,11 +375,20 @@ export default function TrackingMap({ orderId, orderStatus, deliveryAddress, sho
 
     // Cập nhật vị trí Shipper mượt mà (CHỈ di chuyển icon Shipper, KHÔNG ghi đè đường thành đường thẳng!)
     function smoothUpdateShipper(lat, lng, name) {
+      var dot = document.getElementById('badge-dot');
+      var text = document.getElementById('badge-text');
+      if (dot) dot.className = 'badge-dot pulse';
+      if (text) text.innerText = name ? 'Tài xế: ' + name : 'Shipper trực tuyến';
+
       if (!shipperMarker) {
         shipperMarker = L.marker([lat, lng], { icon: shipperIcon, zIndexOffset: 1000 }).addTo(map);
         shipperMarker.bindPopup('<b>' + (name || 'Shipper') + '</b><br/>Đang di chuyển');
       } else {
         shipperMarker.setLatLng([lat, lng]);
+      }
+
+      if (!routeShipperLine) {
+        fetchAndDrawRoute(lat, lng, pickupLat, pickupLng, '#3B82F6', false);
       }
     }
 
@@ -359,7 +400,8 @@ export default function TrackingMap({ orderId, orderStatus, deliveryAddress, sho
       if (!sId || stompClient) return;
       try {
         var wsHost = window.location.hostname || 'localhost';
-        var socket = new SockJS('http://' + wsHost + ':8084/ws');
+        var wsUrl = (window.location.protocol === 'https:' || wsHost.includes('ngrok')) ? 'https://unentwined-johanne-biasedly.ngrok-free.dev/ws' : 'http://' + wsHost + ':8080/ws';
+        var socket = new SockJS(wsUrl);
         stompClient = Stomp.over(socket);
         stompClient.debug = null;
         stompClient.connect({}, function() {
@@ -395,6 +437,11 @@ export default function TrackingMap({ orderId, orderStatus, deliveryAddress, sho
       if (!msg) return;
 
       if (msg.type === 'SET_SHIPPER_ID' && msg.shipperId) {
+        var dot = document.getElementById('badge-dot');
+        var text = document.getElementById('badge-text');
+        if (dot) dot.className = 'badge-dot pulse';
+        if (text) text.innerText = msg.shipperName ? 'Tài xế: ' + msg.shipperName : 'Shipper trực tuyến';
+
         if (!activeShipperId) {
           activeShipperId = msg.shipperId;
           connectStomp(activeShipperId);
@@ -427,6 +474,9 @@ export default function TrackingMap({ orderId, orderStatus, deliveryAddress, sho
     setTimeout(function() {
       map.invalidateSize();
       fitAll();
+      try {
+        window.parent.postMessage({ type: 'IFRAME_READY' }, '*');
+      } catch(e) {}
     }, 400);
   </script>
 </body>

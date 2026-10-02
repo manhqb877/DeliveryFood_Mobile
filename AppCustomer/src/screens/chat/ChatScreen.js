@@ -15,7 +15,7 @@ import {
 import { Send, ChevronLeft } from 'lucide-react-native';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
-import { Audio } from 'expo-av';
+import { loadSoundAsync, playSoundAsync, unloadSoundAsync } from '../../utils/soundHelper';
 import { useAuth } from '../../context/AuthContext';
 import { GATEWAY_URL } from '../../api/apiClient';
 
@@ -42,7 +42,7 @@ export default function ChatScreen({ route, navigation }) {
     setupSound();
     return () => {
       if (soundRef.current) {
-        soundRef.current.unloadAsync();
+        unloadSoundAsync(soundRef.current);
       }
     };
   }, []);
@@ -101,22 +101,14 @@ export default function ChatScreen({ route, navigation }) {
   }, [user?.id, guestSessionId, conversationId]);
 
   const setupSound = async () => {
-    try {
-      const { sound } = await Audio.Sound.createAsync(
-        require('../../../assets/notification.mp3') // We need to provide this, or just use system sound/skip if not available
-      );
-      soundRef.current = sound;
-    } catch (e) {
-      console.log('Cannot load sound file', e);
-    }
+    const sound = await loadSoundAsync(require('../../../assets/notification.mp3'));
+    if (sound) soundRef.current = sound;
   };
 
   const playSound = async () => {
-    try {
-      if (soundRef.current) {
-        await soundRef.current.replayAsync();
-      }
-    } catch (e) {}
+    if (soundRef.current) {
+      await playSoundAsync(soundRef.current);
+    }
   };
 
   const fetchMessages = async () => {

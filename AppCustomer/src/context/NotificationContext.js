@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { Audio } from 'expo-av';
+import { loadSoundAsync, playSoundAsync, unloadSoundAsync } from '../utils/soundHelper';
 import { useAuth } from './AuthContext';
 import { notificationApi } from '../api/notificationApi';
 import { GATEWAY_URL } from '../api/apiClient';
@@ -22,30 +22,21 @@ export function NotificationProvider({ children }) {
   useEffect(() => {
     let soundObj = null;
     const loadAudio = async () => {
-      try {
-        const { sound } = await Audio.Sound.createAsync(
-          require('../../assets/notification.mp3')
-        );
-        soundObj = sound;
-        soundRef.current = sound;
-      } catch (e) {
-        // audio asset might not exist yet, that's fine
-      }
+      soundObj = await loadSoundAsync(require('../../assets/notification.mp3'));
+      soundRef.current = soundObj;
     };
     loadAudio();
     return () => {
       if (soundObj) {
-        soundObj.unloadAsync();
+        unloadSoundAsync(soundObj);
       }
     };
   }, []);
 
   const playNotificationSound = async () => {
-    try {
-      if (soundRef.current) {
-        await soundRef.current.replayAsync();
-      }
-    } catch (_) {}
+    if (soundRef.current) {
+      await playSoundAsync(soundRef.current);
+    }
   };
 
   const dismissToast = useCallback(() => {

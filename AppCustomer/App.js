@@ -32,25 +32,38 @@ const Tab = createBottomTabNavigator();
 
 // Bottom Tab Navigator
 function MainTabs() {
-  const { totalCount } = useCart();
+  const { allCartsTotalCount, totalCount } = useCart();
+  const badgeCount = allCartsTotalCount !== undefined ? allCartsTotalCount : totalCount;
 
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: '#D97706',
-        tabBarInactiveTintColor: '#9CA3AF',
-        tabBarStyle: {
-          backgroundColor: '#FFFFFF',
-          borderTopWidth: 1,
-          borderTopColor: '#F3F4F6',
-          height: Platform.OS === 'web' ? 70 : 62,
-          paddingBottom: Platform.OS === 'web' ? 12 : 8,
-          paddingTop: 8,
+        tabBarInactiveTintColor: '#64748B',
+        tabBarItemStyle: {
+          justifyContent: 'center',
+          alignItems: 'center',
+          paddingVertical: 2,
         },
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '700',
+          marginTop: 1,
+          paddingBottom: 0,
+        },
+        tabBarStyle: {
+          backgroundColor: '#FFFFFF',
+          borderTopWidth: 1,
+          borderTopColor: '#F1F5F9',
+          height: Platform.OS === 'web' ? 68 : (Platform.OS === 'ios' ? 82 : 64),
+          paddingBottom: Platform.OS === 'web' ? 10 : (Platform.OS === 'ios' ? 24 : 8),
+          paddingTop: 6,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.04,
+          shadowRadius: 6,
+          elevation: 4,
         },
       }}
     >
@@ -58,18 +71,18 @@ function MainTabs() {
         name="Trang chủ"
         component={HomeScreen}
         options={{
-          tabBarIcon: ({ color, size }) => <Home color={color} size={size} />,
+          tabBarIcon: ({ color }) => <Home color={color} size={20} strokeWidth={2.2} />,
         }}
       />
       <Tab.Screen
         name="Giỏ hàng"
         component={CartScreen}
         options={{
-          tabBarIcon: ({ color, size }) => <ShoppingBasket color={color} size={size} />,
-          tabBarBadge: totalCount > 0 ? totalCount : undefined,
+          tabBarIcon: ({ color }) => <ShoppingBasket color={color} size={20} strokeWidth={2.2} />,
+          tabBarBadge: badgeCount > 0 ? badgeCount : undefined,
           tabBarBadgeStyle: {
-            backgroundColor: '#FFB700',
-            color: '#111827',
+            backgroundColor: '#F59E0B',
+            color: '#000000',
             fontSize: 10,
             fontWeight: '800',
           },
@@ -79,14 +92,14 @@ function MainTabs() {
         name="Đơn hàng"
         component={OrderHistoryScreen}
         options={{
-          tabBarIcon: ({ color, size }) => <Receipt color={color} size={size} />,
+          tabBarIcon: ({ color }) => <Receipt color={color} size={20} strokeWidth={1.9} />,
         }}
       />
       <Tab.Screen
         name="Tài khoản"
         component={ProfileScreen}
         options={{
-          tabBarIcon: ({ color, size }) => <User color={color} size={size} />,
+          tabBarIcon: ({ color }) => <User color={color} size={20} strokeWidth={1.9} />,
         }}
       />
     </Tab.Navigator>

@@ -212,7 +212,7 @@ export default function ChatScreen({ route, navigation }) {
             onPress={sendMessage}
             disabled={!inputText.trim()}
           >
-            <Send color="#fff" size={20} />
+            <Send color="#111827" size={20} />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
   },
   bubbleMe: {
-    backgroundColor: '#FFB700',
+    backgroundColor: '#FFB800',
     borderBottomRightRadius: 4,
   },
   bubbleThem: {
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
   },
   textMe: {
     color: '#000000',
-    fontWeight: '500',
+    fontWeight: '600',
   },
   textThem: {
     color: '#374151',
@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FFB700',
+    backgroundColor: '#FFB800',
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 8,

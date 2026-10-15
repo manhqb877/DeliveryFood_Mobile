@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
 import { cartApi } from '../api/cartApi';
@@ -23,6 +23,8 @@ export const getOrCreateGuestSessionId = async () => {
 export const CartProvider = ({ children }) => {
   const { user } = useAuth();
   const [carts, setCarts] = useState([]); // [{ id, shopId, subtotal, items: [...] }]
+  const [activeShopId, setActiveShopId] = useState(null);
+  const activeShopIdRef = useRef(null);
   const [activeCart, setActiveCart] = useState(null); // Quán đang chọn
   const [items, setItems] = useState([]); // flatten items của active cart
   const [cartShop, setCartShop] = useState(null);
@@ -30,6 +32,10 @@ export const CartProvider = ({ children }) => {
   const [guestSessionId, setGuestSessionId] = useState(null);
 
   const userId = user?.id || null;
+
+  useEffect(() => {
+    activeShopIdRef.current = activeShopId;
+  }, [activeShopId]);
 
   useEffect(() => {
     if (!userId) {
@@ -40,7 +46,7 @@ export const CartProvider = ({ children }) => {
   }, [userId]);
 
   // Lấy danh sách cart từ backend
-  const fetchAllCarts = useCallback(async () => {
+  const fetchAllCarts = useCallback(async (preferredShopId) => {
     let gId = guestSessionId;
     if (!userId && !gId) {
       gId = await getOrCreateGuestSessionId();
@@ -56,9 +62,19 @@ export const CartProvider = ({ children }) => {
       const rawCarts = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
       
       if (rawCarts.length > 0) {
-        // Hydrate images cho từng item
+        // Hydrate images và shopName cho từng cart
         const hydratedCarts = await Promise.all(
           rawCarts.map(async (cart) => {
+            let sName = cart.shopName;
+            if (!sName && cart.shopId) {
+              try {
+                const sData = await coreApi.getShopDetails(cart.shopId);
+                sName = sData?.shopName || sData?.name || sData?.shop?.shopName || sData?.shop?.name || `Quán #${cart.shopId}`;
+              } catch (_) {
+                sName = `Quán #${cart.shopId}`;
+              }
+            }
+
             const hydratedItems = await Promise.all(
               (cart.items || []).map(async (item) => {
                 let imgUrl = item.imageUrl || null;
@@ -84,12 +100,21 @@ export const CartProvider = ({ children }) => {
                 };
               })
             );
-            return { ...cart, items: hydratedItems };
+            return { ...cart, shopName: sName, items: hydratedItems };
           })
         );
 
         setCarts(hydratedCarts);
-        const currentCart = hydratedCarts.find((c) => c.items?.length > 0) || hydratedCarts[0];
+
+        const currentTargetShop = preferredShopId || activeShopIdRef.current;
+        let currentCart = null;
+        if (currentTargetShop) {
+          currentCart = hydratedCarts.find((c) => String(c.shopId) === String(currentTargetShop));
+        }
+        if (!currentCart) {
+          currentCart = hydratedCarts.find((c) => c.items?.length > 0) || hydratedCarts[0] || null;
+        }
+
         setActiveCart(currentCart);
         setItems(currentCart?.items || []);
         if (currentCart) {
@@ -97,6 +122,9 @@ export const CartProvider = ({ children }) => {
             id: currentCart.shopId,
             shopName: currentCart.shopName || `Quán #${currentCart.shopId}`,
           });
+          if (String(activeShopIdRef.current) !== String(currentCart.shopId)) {
+            setActiveShopId(currentCart.shopId);
+          }
         }
       } else {
         setCarts([]);
@@ -117,6 +145,7 @@ export const CartProvider = ({ children }) => {
 
   // Thêm món vào giỏ
   const addToCart = async (product, shop, quantity = 1, selectedOptions = [], customPrice = null, itemNote = null) => {
+    const sId = shop?.id || shop?.shopId;
     const unitPrice = customPrice !== null ? customPrice : Number(product.basePrice ?? product.price ?? 0);
     let gId = guestSessionId;
     if (!userId && !gId) {
@@ -125,8 +154,8 @@ export const CartProvider = ({ children }) => {
     }
 
     const payload = {
-      shopId: shop.id,
-      areaId: shop.areaId || 1,
+      shopId: sId,
+      areaId: shop?.areaId || 1,
       itemId: product.id,
       itemName: product.name,
       unitPrice: unitPrice,
@@ -137,9 +166,13 @@ export const CartProvider = ({ children }) => {
       guestSessionId: !userId ? gId : null,
     };
 
+    if (sId) {
+      setActiveShopId(sId);
+    }
+
     try {
       await cartApi.addToCart(payload);
-      await fetchAllCarts();
+      await fetchAllCarts(sId);
     } catch (e) {
       console.error('Lỗi thêm giỏ hàng:', e);
       // Fallback local state if network failure
@@ -254,10 +287,101 @@ export const CartProvider = ({ children }) => {
   const totalCount = items.reduce((sum, i) => sum + (i.quantity || 0), 0);
   const totalPrice = items.reduce((sum, i) => sum + Number(i.totalPrice || (i.unitPrice * i.quantity) || 0), 0);
 
+  // Tổng số lượng và tổng tiền món qua tất cả các quán
+  const allCartsTotalCount = carts.reduce((sum, cart) => {
+    return sum + (cart.items?.reduce((s, i) => s + (i.quantity || 0), 0) || 0);
+  }, 0);
+
+  const allCartsTotalPrice = carts.reduce((sum, cart) => {
+    return (
+      sum +
+      (cart.items?.reduce(
+        (s, i) => s + Number(i.totalPrice || i.unitPrice * i.quantity || 0),
+        0
+      ) || 0)
+    );
+  }, 0);
+
+  const allCartsItems = carts.flatMap((c) =>
+    (c.items || []).map((it) => ({
+      ...it,
+      shopId: c.shopId,
+      shopName: c.shopName || `Quán #${c.shopId}`,
+      cartId: c.id,
+    }))
+  );
+
+  const clearAllCarts = async () => {
+    try {
+      let gId = guestSessionId;
+      if (!userId && !gId) gId = await getOrCreateGuestSessionId();
+      for (const c of carts) {
+        try {
+          await cartApi.clearCart(c.id, userId, gId);
+        } catch (_) {}
+      }
+      setItems([]);
+      setActiveCart(null);
+      setCartShop(null);
+      setCarts([]);
+      await fetchAllCarts();
+    } catch (e) {
+      console.error('Lỗi xoá tất cả giỏ hàng:', e);
+      setItems([]);
+      setActiveCart(null);
+      setCartShop(null);
+      setCarts([]);
+    }
+  };
+
+  // Helper lấy thông tin giỏ hàng theo shopId
+  const getShopCart = useCallback((targetShopId) => {
+    const found = carts.find((c) => String(c.shopId) === String(targetShopId));
+    const cartItems = found?.items || [];
+    const count = cartItems.reduce((sum, i) => sum + (i.quantity || 0), 0);
+    const total = cartItems.reduce(
+      (sum, i) => sum + Number(i.totalPrice || (i.unitPrice * i.quantity) || 0),
+      0
+    );
+    return {
+      cart: found,
+      items: cartItems,
+      totalCount: count,
+      totalPrice: total,
+    };
+  }, [carts]);
+
+  const switchActiveShop = useCallback((targetShopId) => {
+    if (!targetShopId) return;
+    setActiveShopId((prev) => {
+      if (String(prev) === String(targetShopId)) return prev;
+      return targetShopId;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (activeShopId && carts.length > 0) {
+      const found = carts.find((c) => String(c.shopId) === String(activeShopId));
+      if (found) {
+        setActiveCart(found);
+        setItems(found.items || []);
+        setCartShop({
+          id: found.shopId,
+          shopName: found.shopName || `Quán #${found.shopId}`,
+        });
+      }
+    }
+  }, [activeShopId, carts]);
+
   return (
     <CartContext.Provider
       value={{
         carts,
+        allCartsTotalCount,
+        allCartsTotalPrice,
+        allCartsItems,
+        activeShopId,
+        setActiveShopId: switchActiveShop,
         activeCart,
         items,
         cartShop,
@@ -266,11 +390,13 @@ export const CartProvider = ({ children }) => {
         loading,
         totalCount,
         totalPrice,
+        getShopCart,
         addToCart,
         updateCartItem,
         removeCartItem,
         removeFromCart,
         clearCart,
+        clearAllCarts,
         refreshCart: fetchAllCarts,
       }}
     >

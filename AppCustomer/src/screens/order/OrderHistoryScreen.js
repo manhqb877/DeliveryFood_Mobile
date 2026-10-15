@@ -21,6 +21,7 @@ import {
   ChevronLeft,
 } from 'lucide-react-native';
 import { orderApi } from '../../api/orderApi';
+import { coreApi } from '../../api/coreApi';
 import moment from 'moment';
 
 const PAGE_SIZE = 5;
@@ -35,6 +36,7 @@ const FILTER_TABS = [
 
 export default function OrderHistoryScreen({ navigation }) {
   const [orders, setOrders] = useState([]);
+  const [shopMap, setShopMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -43,7 +45,15 @@ export default function OrderHistoryScreen({ navigation }) {
 
   const fetchOrders = async () => {
     try {
-      const data = await orderApi.getOrders();
+      const [data, shops] = await Promise.all([
+        orderApi.getOrders().catch(() => []),
+        coreApi.getShops().catch(() => []),
+      ]);
+      const sMap = {};
+      (Array.isArray(shops) ? shops : (shops?.data || [])).forEach((s) => {
+        if (s.id && s.shopName) sMap[s.id] = s.shopName;
+      });
+      setShopMap(sMap);
       setOrders(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Lỗi lấy danh sách đơn hàng:', err);
@@ -101,7 +111,7 @@ export default function OrderHistoryScreen({ navigation }) {
   const filteredOrders = orders.filter((item) => {
     const status = item.orderStatus || item.status || 'PLACED';
     const orderCode = (item.orderCode || '').toLowerCase();
-    const shopName = (item.shopName || '').toLowerCase();
+    const shopName = (shopMap[item.shopId] || item.shopName || '').toLowerCase();
     const query = searchQuery.trim().toLowerCase();
 
     // Check search query
@@ -162,7 +172,7 @@ export default function OrderHistoryScreen({ navigation }) {
           <View style={styles.shopInfo}>
             <Store size={18} color="#4B5563" style={styles.shopIcon} />
             <Text style={styles.shopName} numberOfLines={1}>
-              {item.shopName || (item.shopId ? `Quán #${item.shopId}` : 'Quán ăn')}
+              {shopMap[item.shopId] || item.shopName || (item.shopId ? `Quán #${item.shopId}` : 'Quán ăn')}
             </Text>
           </View>
           <View
@@ -431,8 +441,8 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   filterChipActive: {
-    backgroundColor: '#111827',
-    borderColor: '#111827',
+    backgroundColor: '#FFB800',
+    borderColor: '#FFB800',
   },
   filterChipText: {
     fontSize: 13,
@@ -440,7 +450,8 @@ const styles = StyleSheet.create({
     color: '#4B5563',
   },
   filterChipTextActive: {
-    color: '#FFFFFF',
+    color: '#111827',
+    fontWeight: '800',
   },
   centerContainer: {
     flex: 1,

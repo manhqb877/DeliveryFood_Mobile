@@ -87,11 +87,13 @@ export default function ForgotPasswordScreen({ navigation }) {
 
           {/* Header Brand */}
           <View style={styles.brandContainer}>
-            <View style={styles.logoBadge}>
-              <Utensils size={42} color="#111827" />
+            <View style={styles.beLogoBadge}>
+              <View style={styles.beCircle}>
+                <Text style={styles.beText}>be</Text>
+              </View>
+              <Text style={styles.foodText}>Food</Text>
             </View>
-            <Text style={styles.brandTitle}>Quên mật khẩu</Text>
-            <Text style={styles.brandSubtitle}>Khôi phục tài khoản của bạn</Text>
+            <Text style={styles.brandTagline}>Khôi phục mật khẩu tài khoản</Text>
           </View>
 
           {/* Form Card */}
@@ -224,62 +226,86 @@ export default function ForgotPasswordScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#FFB800',
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 24,
+    padding: 20,
+    paddingTop: 36,
   },
   backBtn: {
     position: 'absolute',
-    top: 24,
-    left: 24,
+    top: 16,
+    left: 16,
     zIndex: 10,
-    width: 40,
-    height: 40,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   brandContainer: {
     alignItems: 'center',
-    marginBottom: 32,
-    marginTop: 20,
+    marginBottom: 24,
+    marginTop: 10,
   },
-  logoBadge: {
-    width: 80,
-    height: 80,
-    backgroundColor: '#FFB700',
-    borderRadius: 40,
+  beLogoBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#111827',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 36,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  beCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFB800',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
-    shadowColor: '#F59E0B',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    marginRight: 6,
   },
-  brandTitle: {
-    fontSize: 28,
+  beText: {
+    fontSize: 18,
     fontWeight: '900',
     color: '#111827',
-    letterSpacing: -0.5,
+    fontStyle: 'italic',
   },
-  brandSubtitle: {
-    fontSize: 15,
-    color: '#4B5563',
-    marginTop: 4,
+  foodText: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#FFB800',
+    letterSpacing: 0.8,
+  },
+  brandTagline: {
+    fontSize: 13,
+    color: '#111827',
+    fontWeight: '700',
+    marginTop: 10,
+    letterSpacing: 0.3,
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
+    borderRadius: 28,
     padding: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 8,
   },
   formTitle: {
     fontSize: 20,

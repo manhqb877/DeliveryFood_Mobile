@@ -27,6 +27,7 @@ import {
   QrCode,
   Copy,
   RefreshCw,
+  Store,
 } from 'lucide-react-native';
 import { useCart, getOrCreateGuestSessionId } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
@@ -36,9 +37,56 @@ import { cartApi } from '../../api/cartApi';
 import { orderApi } from '../../api/orderApi';
 import { paymentApi } from '../../api/paymentApi';
 
-export default function CheckoutScreen({ navigation }) {
-  const { items, cartShop, cartId, activeCart, totalPrice, clearCart } = useCart();
+export default function CheckoutScreen({ navigation, route }) {
+  const {
+    items: singleCartItems,
+    cartShop,
+    cartId: singleCartId,
+    activeCart,
+    totalPrice: singleTotalPrice,
+    carts,
+    allCartsTotalPrice,
+    allCartsTotalCount,
+    allCartsItems,
+    clearCart,
+    clearAllCarts,
+  } = useCart();
   const { user, logout } = useAuth();
+
+  const checkoutMode = route?.params?.mode || (carts.filter((c) => (c.items || []).length > 0).length > 1 ? 'ALL' : 'SINGLE');
+  const targetShopId = route?.params?.shopId;
+
+  // Determine which carts to check out
+  const cartsToCheckout = React.useMemo(() => {
+    const cartsWithItems = carts.filter((c) => (c.items || []).length > 0);
+    if (checkoutMode === 'SINGLE' && targetShopId) {
+      const found = cartsWithItems.filter((c) => String(c.shopId) === String(targetShopId));
+      if (found.length > 0) return found;
+    }
+    if (checkoutMode === 'SINGLE' && activeCart) {
+      return [activeCart];
+    }
+    return cartsWithItems.length > 0 ? cartsWithItems : (activeCart ? [activeCart] : []);
+  }, [carts, checkoutMode, targetShopId, activeCart]);
+
+  // Combined items to checkout
+  const items = React.useMemo(() => {
+    return cartsToCheckout.flatMap((c) =>
+      (c.items || []).map((it) => ({
+        ...it,
+        shopId: c.shopId,
+        shopName: c.shopName || `Quán #${c.shopId}`,
+        cartId: c.id,
+      }))
+    );
+  }, [cartsToCheckout]);
+
+  const totalPrice = React.useMemo(() => {
+    return items.reduce(
+      (sum, i) => sum + Number(i.totalPrice || i.unitPrice * i.quantity || 0),
+      0
+    );
+  }, [items]);
 
   // Recipient form states
   const [fullName, setFullName] = useState(user?.fullName || user?.name || '');
@@ -136,16 +184,19 @@ export default function CheckoutScreen({ navigation }) {
     }
   };
 
+  const currentShopId = cartShop?.id || (items && items.length > 0 ? items[0]?.shopId : null);
+
   // Load vouchers from shop and platform
   useEffect(() => {
+    let isMounted = true;
     const loadVouchers = async () => {
       setLoadingPromos(true);
       try {
-        const shopId = cartShop?.id || items[0]?.shopId;
         const [shopList, platformList] = await Promise.all([
-          shopId ? coreApi.getShopPromotions(shopId) : Promise.resolve([]),
+          currentShopId ? coreApi.getShopPromotions(currentShopId) : Promise.resolve([]),
           coreApi.getPlatformPromotions(),
         ]);
+        if (!isMounted) return;
 
         // Mock vouchers if none returned to ensure rich UX matching web screenshot
         const fallbackShopPromos =
@@ -190,11 +241,16 @@ export default function CheckoutScreen({ navigation }) {
       } catch (err) {
         console.error('Lỗi lấy khuyến mãi:', err);
       } finally {
-        setLoadingPromos(false);
+        if (isMounted) {
+          setLoadingPromos(false);
+        }
       }
     };
     loadVouchers();
-  }, [cartShop, items]);
+    return () => {
+      isMounted = false;
+    };
+  }, [currentShopId]);
 
   const getPromoDiscountText = (promo) => {
     if (!promo) return '';
@@ -302,17 +358,20 @@ export default function CheckoutScreen({ navigation }) {
       return;
     }
     if (!streetAddress.trim()) {
-      Alert.alert('Thiếu địa chỉ', 'Vui lòng nhập địa chỉ giao hàng chi tiết!');
+      if (Platform.OS === 'web') window.alert('Vui lòng nhập địa chỉ giao hàng chi tiết!');
+      else Alert.alert('Thiếu địa chỉ', 'Vui lòng nhập địa chỉ giao hàng chi tiết!');
       return;
     }
     if (items.length === 0) {
-      Alert.alert('Giỏ hàng trống', 'Vui lòng thêm món trước khi thanh toán!');
+      if (Platform.OS === 'web') window.alert('Vui lòng thêm món trước khi thanh toán!');
+      else Alert.alert('Giỏ hàng trống', 'Vui lòng thêm món trước khi thanh toán!');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      let finalCartId = cartId || activeCart?.id;
+      const cartIdsToCheckout = cartsToCheckout.map((c) => c.id).filter(Boolean);
+      let finalCartId = cartIdsToCheckout[0] || singleCartId || activeCart?.id;
 
       // Nếu cartId chưa có trên server, tự động đồng bộ giỏ hàng lên server để có cartId hợp lệ
       if (!finalCartId && items.length > 0) {
@@ -343,7 +402,8 @@ export default function CheckoutScreen({ navigation }) {
       }
 
       if (!finalCartId) {
-        Alert.alert('Lỗi giỏ hàng', 'Không tìm thấy giỏ hàng hợp lệ để tạo đơn. Vui lòng thử lại!');
+        if (Platform.OS === 'web') window.alert('Không tìm thấy giỏ hàng hợp lệ để tạo đơn. Vui lòng thử lại!');
+        else Alert.alert('Lỗi giỏ hàng', 'Không tìm thấy giỏ hàng hợp lệ để tạo đơn. Vui lòng thử lại!');
         setIsSubmitting(false);
         return;
       }
@@ -377,8 +437,11 @@ export default function CheckoutScreen({ navigation }) {
         }
       }
 
+      const activeCartIds = cartIdsToCheckout.length > 0 ? cartIdsToCheckout : [finalCartId];
+
       const payload = {
-        cartId: finalCartId,
+        cartId: activeCartIds[0],
+        cartIds: activeCartIds,
         deliveryAddress: {
           fullAddress: fullDeliveryAddress,
           recipientName: fullName.trim(),
@@ -411,114 +474,55 @@ export default function CheckoutScreen({ navigation }) {
         }
         setCreatedOrderData(createdOrder);
         setQrModalVisible(true);
-        clearCart();
+        clearAllCarts();
       } else {
-        Alert.alert(
-          'Đặt đơn thành công! 🎉',
-          `Mã đơn: ${createdOrder.orderCode || '#' + createdOrder.id}\nShipper sẽ sớm liên hệ và giao hàng tới bạn!`,
-          [
-            {
-              text: 'Xem đơn hàng',
-              onPress: () => {
-                clearCart();
-                navigation.navigate('OrderDetail', { orderId: createdOrder.id });
+        clearAllCarts();
+        if (Platform.OS === 'web') {
+          window.alert(`Đặt đơn thành công! 🎉\nMã đơn: ${createdOrder.orderCode || '#' + createdOrder.id}\nShipper sẽ sớm liên hệ và giao hàng tới bạn!`);
+          navigation.navigate('OrderDetail', { orderId: createdOrder.id });
+        } else {
+          Alert.alert(
+            'Đặt đơn thành công! 🎉',
+            `Mã đơn: ${createdOrder.orderCode || '#' + createdOrder.id}\nShipper sẽ sớm liên hệ và giao hàng tới bạn!`,
+            [
+              {
+                text: 'Xem đơn hàng',
+                onPress: () => {
+                  navigation.navigate('OrderDetail', { orderId: createdOrder.id });
+                },
               },
-            },
-          ]
-        );
+            ]
+          );
+        }
       }
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || err.message || 'Lỗi đặt hàng';
       if (err.response?.status === 401 || String(errorMsg).includes('Unauthorized')) {
-        Alert.alert(
-          'Phiên làm việc hết hạn',
-          'Phiên đăng nhập của bạn đã hết hạn. Vui lòng đăng nhập lại để tiếp tục tạo đơn hàng!',
-          [
-            {
-              text: 'Đăng nhập lại',
-              onPress: () => logout(),
-            },
-          ]
-        );
+        if (Platform.OS === 'web') {
+          window.alert('Phiên làm việc hết hạn: Vui lòng đăng nhập lại để tiếp tục tạo đơn hàng!');
+          logout();
+        } else {
+          Alert.alert(
+            'Phiên làm việc hết hạn',
+            'Phiên đăng nhập của bạn đã hết hạn. Vui lòng đăng nhập lại để tiếp tục tạo đơn hàng!',
+            [
+              {
+                text: 'Đăng nhập lại',
+                onPress: () => logout(),
+              },
+            ]
+          );
+        }
         setIsSubmitting(false);
         return;
       }
 
-      // Fix triệt để: Nếu cart bị lỗi (stale/not found), tự động tạo lại cart mới và thử đặt hàng lại 1 lần
-      if (String(errorMsg).includes('Cart not found')) {
-        console.log('Phát hiện giỏ hàng hết hạn, đang tự động đồng bộ và thử lại...');
-        try {
-          const shop = cartShop || { id: items[0]?.shopId || 1 };
-          const gId = !user?.id ? guestSessionId : null;
-          let newCartId = null;
-          for (const it of items) {
-            console.log('Adding item:', it.itemName);
-            const addedRes = await cartApi.addToCart({
-              shopId: shop.id,
-              areaId: shop.areaId || 1,
-              itemId: it.itemId || it.product?.id || it.id,
-              itemName: it.itemName,
-              unitPrice: it.unitPrice,
-              quantity: it.quantity,
-              selectedOptions: it.selectedOptions || [],
-              itemNote: it.itemNote || null,
-              userId: user?.id || null,
-              guestSessionId: gId,
-            });
-            const cartData = addedRes?.data || addedRes;
-            console.log('Added item, cartId returned:', cartData?.id);
-            if (cartData?.id) newCartId = cartData.id;
-          }
-          
-          console.log('Finished adding items. newCartId=', newCartId);
-          if (newCartId) {
-            const retryPayload = {
-              cartId: newCartId,
-              deliveryAddress: {
-                fullAddress: `${streetAddress}, ${ward}, ${district}, ${province}`,
-                recipientName: fullName.trim(),
-                recipientPhone: phone.trim(),
-                note: note.trim(),
-                latitude: lat,
-                longitude: lng,
-              },
-              paymentMethod: 'COD',
-              orderNote: note.trim(),
-              idempotencyKey: 'idem_' + Date.now() + '_retry',
-              promotionCode: [selectedShopPromo?.code, selectedPlatformPromo?.code].filter(Boolean).join(', ') || null,
-              promotionId: selectedShopPromo?.id || selectedPlatformPromo?.id || null,
-              discountAmount: (calculateShopDiscount() + calculatePlatformDiscount()) || 0,
-            };
-            console.log('Sending retry payload:', retryPayload);
-            const retryRes = await orderApi.createOrder(retryPayload, retryPayload.idempotencyKey);
-            const createdOrder = retryRes?.data || retryRes;
-            console.log('Retry success!', createdOrder);
-            
-            Alert.alert(
-              'Đặt đơn thành công! 🎉',
-              `Mã đơn: ${createdOrder.orderCode || '#' + createdOrder.id}\nShipper sẽ sớm liên hệ và giao hàng tới bạn!`,
-              [
-                {
-                  text: 'Xem đơn hàng',
-                  onPress: () => {
-                    clearCart();
-                    navigation.navigate('OrderDetail', { orderId: createdOrder.id });
-                  },
-                },
-              ],
-              { cancelable: false }
-            );
-            return;
-          } else {
-            console.warn('Retry skipped: newCartId is null!');
-          }
-        } catch (retryErr) {
-          console.error('Lỗi khi thử nghiệm lại:', retryErr);
-          Alert.alert('Thử lại thất bại', 'Lỗi: ' + (retryErr.response?.data?.message || retryErr.message));
-          return;
-        }
-      }
-      
       console.error('Lỗi đặt hàng:', err);
-      Alert.alert('Đặt hàng thất bại', errorMsg);
+      if (Platform.OS === 'web') {
+        window.alert('Đặt hàng thất bại: ' + errorMsg);
+      } else {
+        Alert.alert('Đặt hàng thất bại', errorMsg);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -720,8 +724,8 @@ export default function CheckoutScreen({ navigation }) {
         <View style={styles.card}>
           <View style={styles.paymentHeader}>
             <Text style={styles.cardHeading}>PHƯƠNG THỨC THANH TOÁN</Text>
-            <View style={[styles.codTag, paymentMethod === 'ONLINE' ? { backgroundColor: '#EFF6FF' } : { backgroundColor: '#ECFDF5' }]}>
-              <Text style={[styles.codTagText, paymentMethod === 'ONLINE' ? { color: '#1D4ED8' } : { color: '#047857' }]}>
+            <View style={[styles.codTag, paymentMethod === 'ONLINE' ? { backgroundColor: '#FEF3C7' } : { backgroundColor: '#F3F4F6' }]}>
+              <Text style={[styles.codTagText, paymentMethod === 'ONLINE' ? { color: '#B45309' } : { color: '#111827' }]}>
                 {paymentMethod === 'ONLINE' ? 'VietQR SePay' : '💵 COD Tiền Mặt'}
               </Text>
             </View>
@@ -731,28 +735,28 @@ export default function CheckoutScreen({ navigation }) {
           <TouchableOpacity
             style={[
               styles.codCard,
-              paymentMethod === 'ONLINE' && { borderColor: '#2563EB', backgroundColor: '#F0F7FF', borderWidth: 2 },
+              paymentMethod === 'ONLINE' && { borderColor: '#FFB800', backgroundColor: '#FFFBEB', borderWidth: 2 },
             ]}
             onPress={() => setPaymentMethod('ONLINE')}
             activeOpacity={0.8}
           >
-            <View style={[styles.codIconCircle, paymentMethod === 'ONLINE' && { backgroundColor: '#DBEAFE' }]}>
-              <QrCode size={22} color={paymentMethod === 'ONLINE' ? '#2563EB' : '#6B7280'} />
+            <View style={[styles.codIconCircle, paymentMethod === 'ONLINE' && { backgroundColor: '#FEF3C7' }]}>
+              <QrCode size={22} color={paymentMethod === 'ONLINE' ? '#D97706' : '#6B7280'} />
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={[styles.codTitle, paymentMethod === 'ONLINE' && { color: '#1E40AF' }]}>
+                <Text style={[styles.codTitle, paymentMethod === 'ONLINE' && { color: '#92400E' }]}>
                   Chuyển khoản VietQR (SePay)
                 </Text>
-                <View style={{ backgroundColor: '#FEE2E2', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 }}>
-                  <Text style={{ fontSize: 9, fontWeight: '700', color: '#DC2626' }}>Tự động</Text>
+                <View style={{ backgroundColor: '#FEF3C7', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 }}>
+                  <Text style={{ fontSize: 9, fontWeight: '800', color: '#B45309' }}>Tự động</Text>
                 </View>
               </View>
               <Text style={styles.codDesc}>
                 Quét mã QR qua mọi ứng dụng ngân hàng hoặc ví điện tử. Hệ thống tự động xác nhận tức thì!
               </Text>
             </View>
-            <CheckCircle2 size={20} color={paymentMethod === 'ONLINE' ? '#2563EB' : '#D1D5DB'} />
+            <CheckCircle2 size={20} color={paymentMethod === 'ONLINE' ? '#FFB800' : '#D1D5DB'} />
           </TouchableOpacity>
 
           {/* Option 2: COD */}
@@ -908,38 +912,58 @@ export default function CheckoutScreen({ navigation }) {
         {/* Chi tiết giỏ hàng */}
         <View style={styles.card}>
           <View style={styles.cartDetailHeader}>
-            <Text style={styles.cardHeading}>CHI TIẾT GIỎ HÀNG ({items.length} món)</Text>
-            <Text style={styles.cartShopName}>{cartShop?.shopName || 'Gian hàng'}</Text>
+            <Text style={styles.cardHeading}>
+              CHI TIẾT GIỎ HÀNG ({items.length} món{cartsToCheckout.length > 1 ? ` · ${cartsToCheckout.length} quán` : ''})
+            </Text>
+            {cartsToCheckout.length === 1 && (
+              <Text style={styles.cartShopName}>{cartsToCheckout[0]?.shopName || cartShop?.shopName || 'Gian hàng'}</Text>
+            )}
           </View>
 
-          {items.map((item) => (
-            <View key={item.id} style={styles.cartItemRow}>
-              <Image
-                source={{
-                  uri:
-                    item.imageUrl ||
-                    item.product?.imageUrl ||
-                    'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300&auto=format&fit=crop&q=80',
-                }}
-                style={styles.cartItemThumb}
-                resizeMode="contain"
-              />
-              <View style={styles.cartItemInfo}>
-                <Text style={styles.cartItemName}>{item.itemName}</Text>
-                <Text style={styles.cartItemOpts} numberOfLines={1}>
-                  {item.selectedOptions && item.selectedOptions.length > 0
-                    ? item.selectedOptions
-                        .map((o) => `${o.group || o.groupName}: ${o.option || o.optionName}`)
-                        .join(' · ')
-                    : 'Mặc định'}
-                </Text>
-                <Text style={styles.cartItemQty}>Số lượng: x{item.quantity}</Text>
+          {cartsToCheckout.map((c) => {
+            const cItems = c.items || [];
+            return (
+              <View key={c.id} style={{ marginBottom: cartsToCheckout.length > 1 ? 16 : 0 }}>
+                {cartsToCheckout.length > 1 && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F3F4F6', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, marginBottom: 10 }}>
+                    <Store size={15} color="#1F2937" style={{ marginRight: 6 }} />
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#1F2937' }}>
+                      {c.shopName || `Quán #${c.shopId}`} ({cItems.length} loại món)
+                    </Text>
+                  </View>
+                )}
+
+                {cItems.map((item) => (
+                  <View key={item.id} style={styles.cartItemRow}>
+                    <Image
+                      source={{
+                        uri:
+                          item.imageUrl ||
+                          item.product?.imageUrl ||
+                          'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300&auto=format&fit=crop&q=80',
+                      }}
+                      style={styles.cartItemThumb}
+                      resizeMode="contain"
+                    />
+                    <View style={styles.cartItemInfo}>
+                      <Text style={styles.cartItemName}>{item.itemName}</Text>
+                      <Text style={styles.cartItemOpts} numberOfLines={1}>
+                        {item.selectedOptions && item.selectedOptions.length > 0
+                          ? item.selectedOptions
+                              .map((o) => `${o.group || o.groupName}: ${o.option || o.optionName}`)
+                              .join(' · ')
+                          : 'Mặc định'}
+                      </Text>
+                      <Text style={styles.cartItemQty}>Số lượng: x{item.quantity}</Text>
+                    </View>
+                    <Text style={styles.cartItemPrice}>
+                      {formatVND(item.totalPrice || item.unitPrice * item.quantity)}
+                    </Text>
+                  </View>
+                ))}
               </View>
-              <Text style={styles.cartItemPrice}>
-                {formatVND(item.totalPrice || item.unitPrice * item.quantity)}
-              </Text>
-            </View>
-          ))}
+            );
+          })}
 
           <View style={styles.divider} />
 
@@ -986,7 +1010,6 @@ export default function CheckoutScreen({ navigation }) {
         <TouchableOpacity
           style={[
             styles.placeOrderBtn,
-            paymentMethod === 'ONLINE' && { backgroundColor: '#2563EB' },
             isSubmitting && styles.placeOrderBtnDisabled,
           ]}
           onPress={handlePlaceOrder}
@@ -994,10 +1017,10 @@ export default function CheckoutScreen({ navigation }) {
           activeOpacity={0.8}
         >
           {isSubmitting ? (
-            <ActivityIndicator color={paymentMethod === 'ONLINE' ? '#FFFFFF' : '#111827'} />
+            <ActivityIndicator color="#111827" />
           ) : (
-            <Text style={[styles.placeOrderBtnText, paymentMethod === 'ONLINE' && { color: '#FFFFFF' }]}>
-              {paymentMethod === 'ONLINE' ? 'ĐẶT HÀNG & QUÉT MÃ QR' : '💵 ĐẶT HÀNG (COD)'}
+            <Text style={styles.placeOrderBtnText}>
+              {paymentMethod === 'ONLINE' ? '⚡ ĐẶT HÀNG & QUÉT MÃ QR' : '💵 ĐẶT HÀNG (COD)'}
             </Text>
           )}
         </TouchableOpacity>
@@ -1328,13 +1351,13 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   savedAddressCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFFDF5',
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#93C5FD',
+    borderColor: '#FDE68A',
     padding: 14,
     marginBottom: 14,
-    shadowColor: '#3B82F6',
+    shadowColor: '#F59E0B',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
@@ -1485,15 +1508,15 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   applyBtn: {
-    backgroundColor: '#7C3AED',
+    backgroundColor: '#FFB800',
     paddingHorizontal: 16,
     paddingVertical: 11,
     borderRadius: 10,
   },
   applyBtnText: {
-    color: '#FFFFFF',
+    color: '#111827',
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   promoTabs: {
     flexDirection: 'row',
@@ -1508,7 +1531,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   promoTabActive: {
-    borderBottomColor: '#7C3AED',
+    borderBottomColor: '#FFB800',
   },
   promoTabText: {
     fontSize: 13,
@@ -1516,7 +1539,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   promoTabTextActive: {
-    color: '#7C3AED',
+    color: '#111827',
     fontWeight: '800',
   },
   promoGroup: {
@@ -1667,7 +1690,7 @@ const styles = StyleSheet.create({
   cartShopName: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#0284C7',
+    color: '#111827',
   },
   cartItemRow: {
     flexDirection: 'row',
@@ -1739,7 +1762,7 @@ const styles = StyleSheet.create({
   totalVal: {
     fontSize: 18,
     fontWeight: '900',
-    color: '#0284C7',
+    color: '#DC2626',
   },
   bottomBar: {
     position: 'absolute',
@@ -1770,16 +1793,16 @@ const styles = StyleSheet.create({
   bottomTotalVal: {
     fontSize: 18,
     fontWeight: '900',
-    color: '#0284C7',
+    color: '#DC2626',
   },
   placeOrderBtn: {
-    backgroundColor: '#FFB700',
+    backgroundColor: '#FFB800',
     paddingHorizontal: 24,
     height: 48,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#FFB700',
+    shadowColor: '#FFB800',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
     shadowRadius: 5,

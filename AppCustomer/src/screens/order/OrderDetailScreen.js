@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, MapPin, Receipt, Star, Clock, Store, CheckCircle2, Bike, UtensilsCrossed } from 'lucide-react-native';
 import { orderApi } from '../../api/orderApi';
+import { coreApi } from '../../api/coreApi';
 import moment from 'moment';
 import ReviewModal from '../../components/ReviewModal';
 import { reviewApi } from '../../api/reviewApi';
@@ -19,6 +20,7 @@ import TrackingMap from '../../components/TrackingMap';
 export default function OrderDetailScreen({ route, navigation }) {
   const { orderId } = route.params;
   const [order, setOrder] = useState(null);
+  const [shopRealName, setShopRealName] = useState('');
   const [loading, setLoading] = useState(true);
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [hasReviewed, setHasReviewed] = useState(false);
@@ -49,6 +51,17 @@ export default function OrderDetailScreen({ route, navigation }) {
         const data = await orderApi.getOrderDetails(orderId);
         if (isMounted && data) {
           setOrder(data);
+          // Tự động phân giải tên quán thực tế nếu order.shopName bị thiếu hoặc dạng Shop #ID
+          if (data.shopId && (!data.shopName || data.shopName.startsWith('Shop #') || data.shopName.startsWith('Quán #'))) {
+            try {
+              const sRes = await coreApi.getShopDetails(data.shopId);
+              const sData = sRes?.data || sRes;
+              const realName = sData?.shopName || sData?.name || sData?.shop?.shopName;
+              if (realName && isMounted) {
+                setShopRealName(realName);
+              }
+            } catch (_) {}
+          }
         }
       } catch (err) {
         console.error('Lỗi lấy chi tiết đơn hàng:', err);
@@ -255,7 +268,7 @@ export default function OrderDetailScreen({ route, navigation }) {
             orderId={order.id} 
             orderStatus={currentStatus}
             deliveryAddress={order.deliveryAddress} 
-            shopName={order.shopName} 
+            shopName={shopRealName || order.shopName || 'Quán ăn'} 
           />
         )}
 
@@ -263,7 +276,7 @@ export default function OrderDetailScreen({ route, navigation }) {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Store size={20} color="#111827" />
-            <Text style={styles.cardTitle}>{order.shopName || 'Quán ăn'}</Text>
+            <Text style={styles.cardTitle}>{shopRealName || order.shopName || (order.shopId ? `Quán #${order.shopId}` : 'Quán ăn')}</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.locationRow}>
@@ -341,7 +354,7 @@ export default function OrderDetailScreen({ route, navigation }) {
             <View style={styles.reviewedBody}>
               {/* Quán */}
               <View style={styles.reviewedItemRow}>
-                <Text style={styles.reviewedLabel}>Cửa hàng ({order.shopName || "Quán"}):</Text>
+                <Text style={styles.reviewedLabel}>Cửa hàng ({shopRealName || order.shopName || "Quán"}):</Text>
                 <View style={styles.starsCompact}>
                   {[...Array(existingReview.shopRating || 5)].map((_, i) => (
                     <Star key={i} size={15} color="#F59E0B" fill="#F59E0B" />

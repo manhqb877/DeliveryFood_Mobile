@@ -89,21 +89,30 @@ export default function LoginScreen({ navigation }) {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Header Brand */}
+          {/* Header Brand BeFood */}
           <View style={styles.brandContainer}>
-            <View style={styles.logoBadge}>
-              <Utensils size={42} color="#111827" />
+            <View style={styles.beLogoBadge}>
+              <View style={styles.beCircle}>
+                <Text style={styles.beText}>be</Text>
+              </View>
+              <Text style={styles.foodText}>Food</Text>
             </View>
-            <Text style={styles.brandTitle}>FoodDelivery</Text>
-            <Text style={styles.brandSubtitle}>Món ngon giao tận cửa bạn</Text>
+            <Text style={styles.brandTagline}>Món ngon tới liền • Giao nhanh đúng hẹn</Text>
           </View>
 
           {/* Form Card */}
           <View style={styles.card}>
-            <Text style={styles.formTitle}>Đăng nhập Khách hàng</Text>
-            <Text style={styles.formDesc}>
-              Nhập số điện thoại/email và mật khẩu đã đăng ký
-            </Text>
+            <View style={styles.cardHeaderRow}>
+              <View>
+                <Text style={styles.formTitle}>Đăng nhập</Text>
+                <Text style={styles.formDesc}>
+                  Chào mừng bạn quay lại với beFood!
+                </Text>
+              </View>
+              <View style={styles.roleBadge}>
+                <Text style={styles.roleBadgeText}>KHÁCH HÀNG</Text>
+              </View>
+            </View>
 
             {/* Error banner */}
             {errorMsg ? (
@@ -117,7 +126,7 @@ export default function LoginScreen({ navigation }) {
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Số điện thoại hoặc Email</Text>
               <View style={[styles.inputWrapper, !!errorMsg && styles.inputWrapperError]}>
-                <Phone size={20} color={errorMsg ? '#EF4444' : '#6B7280'} style={styles.inputIcon} />
+                <Phone size={20} color={errorMsg ? '#EF4444' : '#111827'} style={styles.inputIcon} />
                 <TextInput
                   style={styles.textInput}
                   placeholder="0987654321 hoặc email@..."
@@ -136,10 +145,10 @@ export default function LoginScreen({ navigation }) {
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Mật khẩu</Text>
               <View style={[styles.inputWrapper, !!errorMsg && styles.inputWrapperError]}>
-                <Lock size={20} color={errorMsg ? '#EF4444' : '#6B7280'} style={styles.inputIcon} />
+                <Lock size={20} color={errorMsg ? '#EF4444' : '#111827'} style={styles.inputIcon} />
                 <TextInput
                   style={styles.textInput}
-                  placeholder="Nhập mật khẩu"
+                  placeholder="Nhập mật khẩu của bạn"
                   placeholderTextColor="#9CA3AF"
                   secureTextEntry={!showPassword}
                   value={password}
@@ -169,15 +178,15 @@ export default function LoginScreen({ navigation }) {
               </View>
             ) : null}
 
-            {/* Submit Button */}
+            {/* Submit Button - BeFood Signature Button */}
             <TouchableOpacity
               style={[styles.loginBtn, isLoading && styles.loginBtnDisabled]}
               onPress={handleLogin}
               disabled={isLoading}
-              activeOpacity={0.8}
+              activeOpacity={0.85}
             >
               {isLoading ? (
-                <ActivityIndicator color="#111827" />
+                <ActivityIndicator color="#111827" size="small" />
               ) : (
                 <Text style={styles.loginBtnText}>ĐĂNG NHẬP</Text>
               )}
@@ -185,7 +194,7 @@ export default function LoginScreen({ navigation }) {
 
             <View style={styles.noticeBox}>
               <Text style={styles.noticeText}>
-                💡 Dùng chung tài khoản Khách hàng (CUSTOMER) đã đăng ký trên phiên bản Web.
+                💡 Dùng chung tài khoản với phiên bản beFood Web.
               </Text>
             </View>
 
@@ -211,7 +220,7 @@ export default function LoginScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFB700',
+    backgroundColor: '#FFB800', // beFood Yellow
   },
   scrollContent: {
     flexGrow: 1,
@@ -222,52 +231,84 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
   },
-  logoBadge: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#FFFFFF',
+  beLogoBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#111827',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 36,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  beCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFB800',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
-    marginBottom: 12,
+    marginRight: 6,
   },
-  brandTitle: {
-    fontSize: 28,
-    fontWeight: '900',
+  beText: {
+    fontSize: 18,
+    fontWeight: '700',
     color: '#111827',
-    letterSpacing: 0.5,
+    fontStyle: 'italic',
   },
-  brandSubtitle: {
-    fontSize: 14,
-    color: '#1F2937',
-    fontWeight: '500',
-    marginTop: 4,
+  foodText: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#FFB800',
+    letterSpacing: 0.4,
+  },
+  brandTagline: {
+    fontSize: 13,
+    color: '#111827',
+    fontWeight: '600',
+    marginTop: 8,
   },
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
-    padding: 24,
+    padding: 22,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
     elevation: 6,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  roleBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  roleBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#92400E',
   },
   formTitle: {
     fontSize: 20,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#111827',
-    marginBottom: 4,
   },
   formDesc: {
     fontSize: 13,
     color: '#6B7280',
-    marginBottom: 20,
+    marginTop: 2,
     lineHeight: 18,
   },
   errorBox: {
@@ -279,7 +320,7 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: '#EF4444',
     padding: 12,
-    borderRadius: 10,
+    borderRadius: 12,
     marginBottom: 16,
   },
   errorText: {
@@ -313,10 +354,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 6,
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -340,53 +381,55 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   loginBtn: {
-    backgroundColor: '#FFB700',
-    borderRadius: 14,
+    backgroundColor: '#FFB800', // beFood Signature Button
+    borderRadius: 16,
     height: 52,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 10,
-    shadowColor: '#FFB700',
+    marginTop: 8,
+    shadowColor: '#FFB800',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4,
   },
   loginBtnDisabled: {
     opacity: 0.6,
   },
   loginBtnText: {
     color: '#111827',
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   noticeBox: {
-    marginTop: 20,
+    marginTop: 18,
     backgroundColor: '#FFFBEB',
     padding: 12,
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#FEF3C7',
+    borderColor: '#FEF08A',
   },
   noticeText: {
     fontSize: 12,
-    color: '#92400E',
+    color: '#854D0E',
     lineHeight: 18,
     textAlign: 'center',
+    fontWeight: '600',
   },
   linksContainer: {
-    marginTop: 24,
+    marginTop: 22,
     alignItems: 'center',
   },
   linkText: {
-    color: '#D97706',
-    fontWeight: '600',
-    fontSize: 14,
+    color: '#111827',
+    fontWeight: '700',
+    fontSize: 13,
     marginBottom: 16,
   },
   registerWrap: {
     flexDirection: 'row',
+    alignItems: 'center',
   },
   normalText: {
     color: '#6B7280',

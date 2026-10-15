@@ -27,10 +27,10 @@ import {
   Compass,
   Coffee,
   Pizza,
-  UtensilsCrossed,
+  CupSoda,
+  Utensils,
   Soup,
   Cookie,
-  Flame,
   ShoppingBasket,
   Gift,
   X,
@@ -39,6 +39,10 @@ import {
   Bell,
   Plus,
   Sparkles,
+  Flame,
+  UtensilsCrossed,
+  Cake,
+  Tag,
 } from 'lucide-react-native';
 import { coreApi } from '../../api/coreApi';
 import { authApi } from '../../api/authApi';
@@ -67,40 +71,47 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return Math.round(d * 10) / 10;
 }
 
-// 8 danh mục chuẩn phong cách BeFood với bộ lọc từ khóa thực tế trong DB
+// 8 danh mục chuẩn phong cách BeFood với biểu tượng sang trọng, lịch sự
 const CATEGORIES = [
-  { id: 'promo', name: 'Khuyến Mãi', icon: Percent, bg: '#FEF3C7', color: '#D97706' },
-  { id: 'near', name: 'Gần tôi', icon: Compass, bg: '#E0F2FE', color: '#0284C7' },
-  { id: 'drink', name: 'Đồ Uống', icon: Coffee, bg: '#FCE7F3', color: '#DB2777', keywords: ['nước', 'trà', 'cà phê', 'cafe', 'sinh tố', 'ép', 'juice'] },
-  { id: 'fastfood', name: 'Đồ Nhanh', icon: Pizza, bg: '#FFEDD5', color: '#EA580C', keywords: ['mì', 'fast', 'bánh', 'trộn'] },
-  { id: 'milktea', name: 'Trà Sữa', icon: UtensilsCrossed, bg: '#FEF9C3', color: '#CA8A04', keywords: ['trà sữa', 'taka', 'matcha', 'cheese'] },
-  { id: 'rice', name: 'Cơm', icon: Flame, bg: '#DCFCE7', color: '#16A34A', keywords: ['cơm', 'sườn', 'tấm'] },
-  { id: 'noodle', name: 'Bún - Phở', icon: Soup, bg: '#E0E7FF', color: '#4F46E5', keywords: ['bún', 'phở', 'mì', 'hủ tiếu'] },
-  { id: 'snack', name: 'Ăn vặt', icon: Cookie, bg: '#FEE2E2', color: '#DC2626', keywords: ['kem', 'chè', 'ăn vặt', 'trái cây', 'snack'] },
+  { id: 'promo', name: 'Khuyến Mãi', icon: Flame, bg: '#FEF2F2', color: '#EF4444', badge: 'HOT' },
+  { id: 'near', name: 'Gần tôi', icon: MapPin, bg: '#F0F9FF', color: '#0284C7' },
+  { id: 'drink', name: 'Đồ Uống', icon: Coffee, bg: '#FEF3C7', color: '#B45309', keywords: ['nước', 'trà', 'cà phê', 'cafe', 'sinh tố', 'ép', 'juice'] },
+  { id: 'fastfood', name: 'Đồ Nhanh', icon: Pizza, bg: '#FFF7ED', color: '#EA580C', keywords: ['mì', 'fast', 'bánh', 'trộn'] },
+  { id: 'milktea', name: 'Trà Sữa', icon: CupSoda, bg: '#FFFBEB', color: '#D97706', keywords: ['trà sữa', 'taka', 'matcha', 'cheese'] },
+  { id: 'rice', name: 'Cơm', icon: UtensilsCrossed, bg: '#F0FDF4', color: '#16A34A', keywords: ['cơm', 'sườn', 'tấm'] },
+  { id: 'noodle', name: 'Bún - Phở', icon: Soup, bg: '#FAF5FF', color: '#7C3AED', keywords: ['bún', 'phở', 'mì', 'hủ tiếu'] },
+  { id: 'snack', name: 'Ăn vặt', icon: Cake, bg: '#FDF2F8', color: '#DB2777', keywords: ['kem', 'chè', 'ăn vặt', 'trái cây', 'snack'] },
 ];
 
-// 3 banner đặc sắc đúng chủ đề ẩm thực & giao hàng
+// 4 banner đặc sắc đúng chuẩn Food Delivery Mobile
 const BANNERS = [
   {
     id: 1,
-    image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1000&auto=format&fit=crop&q=80',
+    image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=1200&auto=format&fit=crop&q=80',
     badge: 'ĐẠI TIỆC MÓN VIỆT',
-    title: 'Hôm Nay Ăn Gì? beFood Lo!',
-    subtitle: 'Món ngon chuẩn vị, ưu đãi tới 50K & Freeship',
+    title: 'Cơm Ngon Tròn Vị - Freeship 0Đ',
+    subtitle: 'Ưu đãi tới 50K cho bữa trưa văn phòng',
   },
   {
     id: 2,
-    image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=1000&auto=format&fit=crop&q=80',
-    badge: 'SIÊU DEAL GIẢM 50K',
-    title: 'Bùng Nổ Tiệc Burger & FastFood',
-    subtitle: 'Giảm 30% khi đặt đơn nhóm bạn ngay hôm nay',
+    image: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=1200&auto=format&fit=crop&q=80',
+    badge: 'TIỆC PIZZA & FASTFOOD',
+    title: 'Mua 1 Tặng 1 - Deal Giảm 50%',
+    subtitle: 'Đặt ngay giao liền nóng giòn trong 20 phút',
   },
   {
     id: 3,
-    image: 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=1000&auto=format&fit=crop&q=80',
-    badge: 'GIẢI NHIỆT MÙA HÈ',
-    title: 'Trà Sữa & Nước Ép Tươi Mát',
-    subtitle: 'Đồng giá chỉ từ 19K, giao nhanh tận cửa',
+    image: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=1200&auto=format&fit=crop&q=80',
+    badge: 'GIẢI NHIỆT CỰC ĐÃ',
+    title: 'Trà Sữa & Trà Trái Cây 19K',
+    subtitle: 'Topping tràn ly, thanh mát ngày nắng hè',
+  },
+  {
+    id: 4,
+    image: 'https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?w=1200&auto=format&fit=crop&q=80',
+    badge: 'MÓN NƯỚC NÓNG HỔI',
+    title: 'Phở & Bún Bò Chuẩn Vị Xưa',
+    subtitle: 'Ấm bụng đậm đà, giảm 25K cho đơn từ 2 tô',
   },
 ];
 
@@ -196,7 +207,8 @@ const isTopping = (item) => {
 
 export default function HomeScreen({ navigation }) {
   const { user } = useAuth();
-  const { totalCount, addToCart } = useCart();
+  const { allCartsTotalCount, totalCount, addToCart } = useCart();
+  const cartBadgeCount = allCartsTotalCount !== undefined ? allCartsTotalCount : totalCount;
   const { unreadCount } = useNotification();
   const [shops, setShops] = useState([]);
   const [promotions, setPromotions] = useState([]);
@@ -206,7 +218,9 @@ export default function HomeScreen({ navigation }) {
   const [activeBanner, setActiveBanner] = useState(0);
   const [promoModalVisible, setPromoModalVisible] = useState(false);
   const [copiedCode, setCopiedCode] = useState(null);
-  const [bannerWidth, setBannerWidth] = useState(Math.min(width, 480) - 32);
+  const [bannerWidth, setBannerWidth] = useState(
+    Platform.OS === 'web' ? Math.min(width, 480) - 20 : width - 20
+  );
 
   // Auto-play banner ref & state
   const bannerScrollRef = useRef(null);
@@ -458,18 +472,18 @@ export default function HomeScreen({ navigation }) {
       {/* Top Header: Địa chỉ giao hàng & Giỏ hàng */}
       <View style={styles.topHeader}>
         <View style={styles.locationContainer}>
-          <Text style={styles.locationSub}>GIAO TỚI</Text>
+          <Text style={styles.locationSub}>Giao đến</Text>
           <TouchableOpacity
             style={styles.locationRow}
             onPress={() => navigation.navigate('AddressList')}
           >
-            <MapPin size={18} color="#D97706" style={{ marginRight: 6 }} />
+            <MapPin size={15} color="#1E293B" style={{ marginRight: 4 }} />
             <Text style={styles.locationText} numberOfLines={1}>
               {userAddress?.addressLine
                 ? `${user?.fullName ? user.fullName + ' - ' : ''}${userAddress.addressLine}`
                 : '42/3 Nguyễn Hữu Tiến, P. Tây Thạnh, Q. Tân Phú'}
             </Text>
-            <ChevronRight size={16} color="#6B7280" />
+            <ChevronRight size={14} color="#64748B" />
           </TouchableOpacity>
         </View>
 
@@ -478,7 +492,7 @@ export default function HomeScreen({ navigation }) {
             style={styles.bellHeaderBtn}
             onPress={() => navigation.navigate('Notifications')}
           >
-            <Bell size={21} color="#111827" />
+            <Bell size={18} color="#1E293B" strokeWidth={1.8} />
             {unreadCount > 0 && (
               <View style={styles.bellHeaderBadge}>
                 <Text style={styles.bellHeaderBadgeText}>
@@ -492,10 +506,10 @@ export default function HomeScreen({ navigation }) {
             style={styles.cartHeaderBtn}
             onPress={() => navigation.navigate('Giỏ hàng')}
           >
-            <ShoppingBasket size={21} color="#111827" />
-            {totalCount > 0 && (
+            <ShoppingBasket size={18} color="#1E293B" strokeWidth={1.8} />
+            {cartBadgeCount > 0 && (
               <View style={styles.cartHeaderBadge}>
-                <Text style={styles.cartHeaderBadgeText}>{totalCount}</Text>
+                <Text style={styles.cartHeaderBadgeText}>{cartBadgeCount}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -505,11 +519,11 @@ export default function HomeScreen({ navigation }) {
       {/* Thanh Search Bar */}
       <View style={styles.searchWrapper}>
         <View style={styles.searchBox}>
-          <Search size={18} color="#9CA3AF" style={{ marginRight: 8 }} />
+          <Search size={16} color="#94A3B8" strokeWidth={2} style={{ marginRight: 8 }} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Tìm món ăn hoặc nhà hàng..."
-            placeholderTextColor="#9CA3AF"
+            placeholder="Tìm món ngon, tên quán ăn..."
+            placeholderTextColor="#94A3B8"
             value={searchQuery}
             onChangeText={(text) => {
               setSearchQuery(text);
@@ -521,7 +535,7 @@ export default function HomeScreen({ navigation }) {
           />
           {searchQuery.trim().length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')} style={{ padding: 4 }}>
-              <XCircle size={18} color="#9CA3AF" />
+              <XCircle size={16} color="#94A3B8" />
             </TouchableOpacity>
           )}
         </View>
@@ -537,14 +551,16 @@ export default function HomeScreen({ navigation }) {
         <View
           style={styles.bannerContainer}
           onLayout={(e) => {
-            const w = e.nativeEvent.layout.width;
-            if (w > 0) setBannerWidth(w);
+            const w = Math.round(e.nativeEvent.layout.width);
+            if (w > 0 && Math.abs(w - bannerWidth) > 1) setBannerWidth(w);
           }}
         >
           <ScrollView
             ref={bannerScrollRef}
             horizontal
             pagingEnabled
+            snapToInterval={bannerWidth}
+            decelerationRate="fast"
             showsHorizontalScrollIndicator={false}
             onScroll={(e) => {
               const slide = Math.round(e.nativeEvent.contentOffset.x / (bannerWidth || 1));
@@ -574,7 +590,7 @@ export default function HomeScreen({ navigation }) {
           </View>
         </View>
 
-        {/* 8 Danh mục bo tròn (Category Circular Grid) */}
+        {/* 8 Danh mục món ăn cao cấp (Gourmet Category Grid) */}
         <View style={styles.categoryGrid}>
           {CATEGORIES.map((cat) => {
             const IconComponent = cat.icon;
@@ -583,21 +599,37 @@ export default function HomeScreen({ navigation }) {
               <TouchableOpacity
                 key={cat.id}
                 style={styles.categoryItem}
+                activeOpacity={0.75}
                 onPress={() => handleSelectCategory(cat)}
               >
                 <View
                   style={[
-                    styles.categoryIconWrap,
-                    { backgroundColor: isSelected ? '#FFB700' : cat.bg },
-                    isSelected && styles.categoryIconWrapSelected,
+                    styles.categoryCard,
+                    isSelected && styles.categoryCardSelected,
                   ]}
                 >
-                  <IconComponent size={24} color={isSelected ? '#FFFFFF' : cat.color} />
+                  {cat.badge && (
+                    <View style={styles.catBadge}>
+                      <Text style={styles.catBadgeText}>{cat.badge}</Text>
+                    </View>
+                  )}
+                  <View
+                    style={[
+                      styles.categoryIconInner,
+                      { backgroundColor: isSelected ? '#FEF3C7' : cat.bg },
+                    ]}
+                  >
+                    <IconComponent
+                      size={21}
+                      color={isSelected ? '#B45309' : cat.color}
+                      strokeWidth={1.85}
+                    />
+                  </View>
                 </View>
                 <Text
                   style={[
                     styles.categoryName,
-                    isSelected && { fontWeight: '700', color: '#B45309' },
+                    isSelected && styles.categoryNameSelected,
                   ]}
                   numberOfLines={1}
                 >
@@ -615,9 +647,9 @@ export default function HomeScreen({ navigation }) {
           onPress={() => setPromoModalVisible(true)}
         >
           <View style={styles.voucherContent}>
-            <Ticket size={20} color="#D97706" style={{ marginRight: 8 }} />
+            <Ticket size={16} color="#D97706" style={{ marginRight: 8 }} />
             <Text style={styles.voucherText}>
-              <Text style={{ fontWeight: '800' }}>
+              <Text style={{ fontWeight: '700' }}>
                 {promotions.length > 0 ? `${promotions.length} ưu đãi` : '3 ưu đãi'}
               </Text>{' '}
               đang chờ bạn!
@@ -689,7 +721,7 @@ export default function HomeScreen({ navigation }) {
         {!searching && searchedItems.length > 0 && (
           <View style={styles.searchedItemsSection}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>MÓN ĂN PHÙ HỢP</Text>
+              <Text style={styles.sectionTitle}>Món ăn gợi ý</Text>
               <Text style={styles.shopCountBadge}>{searchedItems.length} món</Text>
             </View>
             <ScrollView
@@ -766,7 +798,7 @@ export default function HomeScreen({ navigation }) {
         {selectedCategory && selectedCategory.id !== 'near' && (
           <View style={styles.categoryItemsSection}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>MÓN NGON: {selectedCategory.name.toUpperCase()}</Text>
+              <Text style={styles.sectionTitle}>Món ngon: {selectedCategory.name}</Text>
               {categoryItems.length > 0 && (
                 <Text style={styles.shopCountBadge}>{categoryItems.length} món</Text>
               )}
@@ -856,12 +888,12 @@ export default function HomeScreen({ navigation }) {
           <View>
             <Text style={styles.sectionTitle}>
               {selectedCategory?.id === 'near'
-                ? 'QUÁN GẦN BẠN NHẤT'
+                ? 'Quán gần bạn nhất'
                 : selectedCategory
-                ? `QUÁN PHÙ HỢP (${selectedCategory.name})`
+                ? `Quán phù hợp (${selectedCategory.name})`
                 : searchQuery.trim()
-                ? 'KẾT QUẢ TÌM QUÁN'
-                : 'QUÁN NGON GẦN BẠN'}
+                ? 'Kết quả tìm kiếm'
+                : 'Quán ngon gần bạn'}
             </Text>
             <Text style={styles.sectionSub}>Giao hàng nhanh trong 15-30 phút</Text>
           </View>
@@ -888,16 +920,23 @@ export default function HomeScreen({ navigation }) {
                 activeOpacity={0.85}
                 onPress={() => navigation.navigate('ShopDetail', { shopId: shop.id, shop })}
               >
-                <Image
-                  source={{
-                    uri:
-                      shop.coverImageUrl ||
-                      shop.coverUrl ||
-                      shop.logoUrl ||
-                      'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=500&auto=format&fit=crop&q=60',
-                  }}
-                  style={styles.shopImage}
-                />
+                <View style={{ position: 'relative' }}>
+                  <Image
+                    source={{
+                      uri:
+                        shop.coverImageUrl ||
+                        shop.coverUrl ||
+                        shop.logoUrl ||
+                        'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=500&auto=format&fit=crop&q=60',
+                    }}
+                    style={styles.shopImage}
+                  />
+                  {(shop.isOpen === false || shop.isAcceptingOrders === false) && (
+                    <View style={{ position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(220, 38, 38, 0.92)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, zIndex: 10 }}>
+                      <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800' }}>ĐÓNG CỬA</Text>
+                    </View>
+                  )}
+                </View>
                 <View style={styles.shopInfo}>
                   <Text style={styles.shopName} numberOfLines={1}>
                     {shop.shopName || shop.name}
@@ -930,12 +969,20 @@ export default function HomeScreen({ navigation }) {
 
                   {/* Promo Tags */}
                   <View style={styles.tagsRow}>
-                    <View style={styles.promoTag}>
-                      <Text style={styles.promoTagText}>Giảm 25K</Text>
-                    </View>
-                    <View style={[styles.promoTag, { backgroundColor: '#FEF3C7' }]}>
-                      <Text style={[styles.promoTagText, { color: '#92400E' }]}>Freeship</Text>
-                    </View>
+                    {(shop.isOpen === false || shop.isAcceptingOrders === false) ? (
+                      <View style={[styles.promoTag, { backgroundColor: '#FEE2E2' }]}>
+                        <Text style={[styles.promoTagText, { color: '#DC2626', fontWeight: '700' }]}>⛔ Tạm đóng cửa</Text>
+                      </View>
+                    ) : (
+                      <>
+                        <View style={styles.promoTag}>
+                          <Text style={styles.promoTagText}>Giảm 25K</Text>
+                        </View>
+                        <View style={[styles.promoTag, { backgroundColor: '#FEF3C7' }]}>
+                          <Text style={[styles.promoTagText, { color: '#92400E' }]}>Freeship</Text>
+                        </View>
+                      </>
+                    )}
                   </View>
                 </View>
               </TouchableOpacity>
@@ -1039,9 +1086,9 @@ const styles = StyleSheet.create({
   },
   topHeader: {
     paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 6,
-    backgroundColor: '#FFFFFF',
+    paddingTop: 10,
+    paddingBottom: 4,
+    backgroundColor: '#F59E0B',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1056,91 +1103,115 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   bellHeaderBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F3F4F6',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.05)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
   },
   bellHeaderBadge: {
     position: 'absolute',
     top: -2,
     right: -2,
     backgroundColor: '#EF4444',
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 3,
+    paddingHorizontal: 2,
   },
   bellHeaderBadgeText: {
     fontSize: 9,
-    fontWeight: '900',
+    fontWeight: '700',
     color: '#FFFFFF',
   },
   cartHeaderBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F3F4F6',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.05)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
   },
   cartHeaderBadge: {
     position: 'absolute',
     top: -2,
     right: -2,
-    backgroundColor: '#FFB700',
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
+    backgroundColor: '#EF4444',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 3,
+    paddingHorizontal: 2,
   },
   cartHeaderBadgeText: {
-    fontSize: 10,
-    fontWeight: '900',
-    color: '#111827',
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   locationSub: {
     fontSize: 10,
-    fontWeight: '800',
-    color: '#9CA3AF',
-    letterSpacing: 0.8,
+    fontWeight: '700',
+    color: '#451A03',
+    opacity: 0.9,
   },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 2,
+    marginTop: 1,
   },
   locationText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#111827',
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#000000',
     flex: 1,
   },
   searchWrapper: {
     paddingHorizontal: 16,
-    paddingBottom: 12,
-    backgroundColor: '#FFFFFF',
+    paddingBottom: 10,
+    paddingTop: 2,
+    backgroundColor: '#F59E0B',
+    borderBottomLeftRadius: 18,
+    borderBottomRightRadius: 18,
   },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
     paddingHorizontal: 12,
-    height: 44,
+    height: 38,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.04)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   searchInput: {
     flex: 1,
-    fontSize: 14,
-    color: '#111827',
+    fontSize: 13,
+    color: '#1E293B',
     paddingVertical: 0,
     borderWidth: 0,
     ...(Platform.OS === 'web'
@@ -1154,59 +1225,64 @@ const styles = StyleSheet.create({
   },
   bannerContainer: {
     marginTop: 10,
-    marginHorizontal: 16,
-    borderRadius: 18,
+    marginHorizontal: 10,
+    borderRadius: 16,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
   },
   bannerSlide: {
-    height: 195,
-    borderRadius: 18,
+    height: 180,
+    borderRadius: 16,
     overflow: 'hidden',
     position: 'relative',
-    backgroundColor: '#FFB700',
+    backgroundColor: '#1E293B',
   },
   bannerImage: {
     width: '100%',
     height: '100%',
     position: 'absolute',
-    opacity: 0.85,
+    opacity: 1,
   },
   bannerOverlay: {
     position: 'absolute',
-    bottom: 14,
-    left: 14,
-    right: 14,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 14,
+    paddingBottom: 12,
+    paddingTop: 24,
+    backgroundColor: 'rgba(0, 0, 0, 0.42)',
   },
   bannerBadge: {
-    backgroundColor: '#111827',
-    color: '#FFB700',
+    backgroundColor: '#F59E0B',
+    color: '#000000',
     fontSize: 10,
     fontWeight: '800',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 5,
     alignSelf: 'flex-start',
     marginBottom: 4,
+    letterSpacing: 0.3,
   },
   bannerTitle: {
-    fontSize: 18,
-    fontWeight: '900',
+    fontSize: 16,
+    fontWeight: '800',
     color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowColor: 'rgba(0, 0, 0, 0.7)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
   bannerSubtitle: {
     fontSize: 12,
-    color: '#F9FAFB',
-    fontWeight: '600',
+    color: '#F8FAFC',
+    fontWeight: '500',
     marginTop: 2,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowColor: 'rgba(0, 0, 0, 0.7)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
@@ -1220,120 +1296,151 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#CBD5E1',
     marginHorizontal: 3,
   },
   activeDot: {
     width: 16,
-    backgroundColor: '#FFB700',
+    backgroundColor: '#F59E0B',
   },
   categoryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 8,
-    marginTop: 16,
+    paddingHorizontal: 10,
+    marginTop: 14,
+    marginBottom: 6,
   },
   categoryItem: {
     width: '25%',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 14,
   },
-  categoryIconWrap: {
+  categoryCard: {
     width: 56,
     height: 56,
     borderRadius: 18,
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 6,
-    shadowColor: '#000',
+    borderWidth: 1.2,
+    borderColor: '#F1F5F9',
+    shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.05,
     shadowRadius: 5,
     elevation: 2,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.04)',
+    position: 'relative',
+  },
+  categoryCardSelected: {
+    borderColor: '#F59E0B',
+    borderWidth: 1.8,
+    backgroundColor: '#FFFDF5',
+    transform: [{ scale: 1.04 }],
+  },
+  categoryIconInner: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  catBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: '#EF4444',
+    borderRadius: 7,
+    paddingHorizontal: 4.5,
+    paddingVertical: 1.5,
+    zIndex: 10,
+    borderWidth: 1.2,
+    borderColor: '#FFFFFF',
+    elevation: 3,
+  },
+  catBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 0.2,
   },
   categoryName: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#1E293B',
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#475569',
     textAlign: 'center',
+    letterSpacing: 0.1,
   },
-  categoryItemSelected: {
-    transform: [{ scale: 1.05 }],
-  },
-  categoryIconWrapSelected: {
-    borderWidth: 2,
-    borderColor: '#D97706',
-    shadowColor: '#D97706',
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
+  categoryNameSelected: {
+    fontWeight: '800',
+    color: '#B45309',
   },
   voucherContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#FFFBEB',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    borderStyle: 'solid',
-    marginHorizontal: 16,
-    paddingVertical: 11,
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1.5,
+    borderColor: '#F59E0B',
+    marginHorizontal: 10,
+    paddingVertical: 9,
     paddingHorizontal: 14,
-    borderRadius: 14,
-    marginTop: 4,
+    borderRadius: 12,
+    marginTop: 2,
     marginBottom: 14,
-    shadowColor: '#D97706',
+    shadowColor: '#F59E0B',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.12,
     shadowRadius: 4,
-    elevation: 1,
+    elevation: 2,
   },
   voucherContent: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   voucherText: {
-    fontSize: 13,
-    color: '#92400E',
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#78350F',
   },
   voucherBtn: {
-    backgroundColor: '#FFB700',
-    paddingHorizontal: 14,
-    paddingVertical: 5,
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 12,
+    paddingVertical: 4.5,
     borderRadius: 8,
   },
   voucherBtnText: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '800',
-    color: '#111827',
+    color: '#000000',
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   sectionTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#111827',
-    letterSpacing: 0.3,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1E293B',
   },
   sectionSub: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 1,
   },
   shopCountBadge: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
-    color: '#D97706',
+    color: '#B45309',
     backgroundColor: '#FEF3C7',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 6,
   },
   shopList: {
     paddingHorizontal: 16,
@@ -1341,76 +1448,76 @@ const styles = StyleSheet.create({
   shopCard: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    marginBottom: 14,
-    padding: 10,
+    borderRadius: 12,
+    marginBottom: 10,
+    padding: 8,
     borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderColor: '#F1F5F9',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
     elevation: 1,
   },
   shopImage: {
-    width: 90,
-    height: 90,
-    borderRadius: 12,
+    width: 76,
+    height: 76,
+    borderRadius: 10,
     backgroundColor: '#F3F4F6',
   },
   shopInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 10,
     justifyContent: 'center',
   },
   shopName: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
     color: '#111827',
     marginBottom: 2,
   },
   shopAddress: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginBottom: 6,
+    fontSize: 11,
+    color: '#64748B',
+    marginBottom: 4,
   },
   shopMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   ratingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   ratingText: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 11,
+    fontWeight: '600',
     color: '#111827',
-    marginLeft: 3,
+    marginLeft: 2,
   },
   metaDivider: {
-    fontSize: 12,
-    color: '#D1D5DB',
-    marginHorizontal: 6,
+    fontSize: 11,
+    color: '#CBD5E1',
+    marginHorizontal: 5,
   },
   metaTime: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   metaTimeText: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginLeft: 3,
+    fontSize: 11,
+    color: '#64748B',
+    marginLeft: 2,
   },
   distanceBadge: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   distanceText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#0284C7',
-    fontWeight: '600',
+    fontWeight: '500',
   },
   tagsRow: {
     flexDirection: 'row',
@@ -1418,110 +1525,105 @@ const styles = StyleSheet.create({
   },
   promoTag: {
     backgroundColor: '#FEE2E2',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
     borderRadius: 4,
-    marginRight: 6,
+    marginRight: 5,
   },
   promoTagText: {
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 9.5,
+    fontWeight: '600',
     color: '#DC2626',
   },
   loadingWrap: {
-    paddingVertical: 40,
+    paddingVertical: 30,
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 10,
-    fontSize: 13,
+    marginTop: 8,
+    fontSize: 12,
     color: '#6B7280',
   },
   emptyWrap: {
-    paddingVertical: 40,
+    paddingVertical: 30,
     alignItems: 'center',
   },
   emptyTitle: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
     color: '#374151',
   },
   emptyDesc: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#9CA3AF',
-    marginTop: 4,
+    marginTop: 3,
   },
   pillTabsContainer: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   pillTabsScroll: {
     paddingHorizontal: 16,
-    gap: 8,
+    gap: 6,
   },
   pillTab: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F8FAFC',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
   pillTabActive: {
-    backgroundColor: '#FFB700',
-    borderColor: '#F59E0B',
-    shadowColor: '#FFB700',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 5,
-    elevation: 3,
+    backgroundColor: '#F59E0B',
+    borderColor: '#D97706',
   },
   pillTabText: {
-    fontSize: 12.5,
-    fontWeight: '600',
+    fontSize: 11.5,
+    fontWeight: '500',
     color: '#475569',
   },
   pillTabTextActive: {
-    fontSize: 12.5,
+    fontSize: 11.5,
     fontWeight: '800',
-    color: '#111827',
+    color: '#000000',
   },
   searchingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    gap: 8,
+    paddingVertical: 10,
+    gap: 6,
   },
   searchingText: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#6B7280',
-    fontWeight: '600',
+    fontWeight: '500',
   },
   searchedItemsSection: {
-    marginBottom: 18,
+    marginBottom: 14,
   },
   categoryItemsSection: {
-    marginBottom: 18,
+    marginBottom: 14,
   },
   foodItemCard: {
-    width: 165,
+    width: 148,
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    marginRight: 12,
+    borderRadius: 12,
+    marginRight: 10,
     borderWidth: 1,
     borderColor: '#F1F5F9',
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 7,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
   },
   foodItemImageWrap: {
     width: '100%',
-    height: 112,
+    height: 96,
     position: 'relative',
     backgroundColor: '#F3F4F6',
   },
@@ -1531,39 +1633,35 @@ const styles = StyleSheet.create({
   },
   foodItemBadge: {
     position: 'absolute',
-    top: 6,
-    left: 6,
+    top: 5,
+    left: 5,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.94)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 6,
   },
   foodItemBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
+    fontSize: 9.5,
+    fontWeight: '700',
     color: '#B45309',
   },
   foodItemContent: {
-    padding: 10,
+    padding: 8,
   },
   foodItemName: {
-    fontSize: 13.5,
-    fontWeight: '700',
+    fontSize: 12.5,
+    fontWeight: '600',
     color: '#0F172A',
-    lineHeight: 18,
-    minHeight: 36,
-    marginBottom: 4,
+    lineHeight: 16,
+    minHeight: 32,
+    marginBottom: 3,
   },
   foodItemShop: {
-    fontSize: 11,
+    fontSize: 10.5,
     color: '#64748B',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   foodPriceRow: {
     flexDirection: 'row',
@@ -1571,14 +1669,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   foodItemPrice: {
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: 13,
+    fontWeight: '700',
     color: '#D97706',
   },
   foodAddBtn: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: '#FEF3C7',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1610,8 +1708,8 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F3F4F6',
   },
   modalTitle: {
-    fontSize: 17,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
     color: '#111827',
   },
   modalCloseBtn: {
@@ -1622,11 +1720,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#FFFBEB',
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: '#FDE68A',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 12,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
   },
   promoCardLeft: {
     flex: 1,
@@ -1638,25 +1736,24 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#D97706',
     borderStyle: 'solid',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
     borderRadius: 6,
-    marginBottom: 6,
+    marginBottom: 4,
   },
   promoBadgeText: {
-    fontSize: 13,
-    fontWeight: '900',
+    fontSize: 11,
+    fontWeight: '700',
     color: '#B45309',
-    letterSpacing: 0.5,
   },
   promoDiscount: {
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: 13,
+    fontWeight: '700',
     color: '#111827',
-    marginBottom: 3,
+    marginBottom: 2,
   },
   promoCond: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#6B7280',
     marginBottom: 2,
   },
@@ -1670,13 +1767,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF3C7',
     borderWidth: 1,
     borderColor: '#D97706',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
   },
   copyBtnText: {
-    fontSize: 12,
-    fontWeight: '800',
+    fontSize: 11,
+    fontWeight: '700',
     color: '#B45309',
   },
   copiedBtn: {

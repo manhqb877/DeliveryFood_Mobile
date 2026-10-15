@@ -41,7 +41,25 @@ export default function ShopDetailScreen({ route, navigation }) {
   const [selectedProduct, setSelectedProduct] = useState(null);
 
   const { user, guestSessionId } = useAuth();
-  const { items, addToCart, removeFromCart, totalCount, totalPrice } = useCart();
+  const {
+    carts,
+    addToCart,
+    updateCartItem,
+    removeCartItem,
+    setActiveShopId,
+  } = useCart();
+  const isClosed = shop?.isOpen === false || shop?.isAcceptingOrders === false;
+
+
+
+  // Giỏ hàng riêng của quán này
+  const currentShopCart = carts.find((c) => String(c.shopId) === String(shopId));
+  const shopItems = currentShopCart?.items || [];
+  const currentShopTotalCount = shopItems.reduce((sum, i) => sum + (i.quantity || 0), 0);
+  const currentShopTotalPrice = shopItems.reduce(
+    (sum, i) => sum + Number(i.totalPrice || (i.unitPrice * i.quantity) || 0),
+    0
+  );
 
   const handleMessageShop = async () => {
     try {
@@ -86,6 +104,8 @@ export default function ShopDetailScreen({ route, navigation }) {
             avgRating: realShop.avgRating || realShop.rating || prev?.avgRating,
             coverImageUrl: realShop.coverImageUrl || realShop.coverUrl || prev?.coverImageUrl,
             logoUrl: realShop.logoUrl || prev?.logoUrl,
+            isOpen: realShop.isOpen !== undefined ? realShop.isOpen : prev?.isOpen,
+            isAcceptingOrders: realShop.isAcceptingOrders !== undefined ? realShop.isAcceptingOrders : prev?.isAcceptingOrders,
           }));
         }
       } catch (err) {
@@ -119,12 +139,37 @@ export default function ShopDetailScreen({ route, navigation }) {
   };
 
   const getItemQuantity = (productId) => {
-    // Lấy tổng số lượng của sản phẩm này trong giỏ (không phân biệt options ở màn hình ngoài)
-    const productItems = items.filter((i) => i.product.id === productId);
+    const productItems = shopItems.filter(
+      (i) => String(i.itemId) === String(productId) || String(i.product?.id) === String(productId)
+    );
     return productItems.reduce((sum, item) => sum + item.quantity, 0);
   };
 
+  const handleDecrementProduct = (product) => {
+    const matchingItems = shopItems.filter(
+      (i) => String(i.itemId) === String(product.id) || String(i.product?.id) === String(product.id)
+    );
+    if (matchingItems.length === 1) {
+      const target = matchingItems[0];
+      if (target.quantity > 1) {
+        updateCartItem(target.id, { quantity: target.quantity - 1 });
+      } else {
+        removeCartItem(target.id);
+      }
+    } else {
+      setActiveShopId(shopId);
+      navigation.navigate('Cart');
+    }
+  };
+
   const handleProductPress = (product) => {
+    if (isClosed) {
+      Alert.alert(
+        'Quán tạm đóng cửa',
+        `Quán hiện đang ${shop?.isOpen === false ? 'đóng cửa' : 'tạm ngưng nhận đơn hàng'}. Quý khách vui lòng chọn quán khác hoặc quay lại khi quán mở cửa nhé!`
+      );
+      return;
+    }
     if (product.options && product.options.length > 0) {
       setSelectedProduct(product);
       setModalVisible(true);
@@ -133,10 +178,13 @@ export default function ShopDetailScreen({ route, navigation }) {
     }
   };
 
-  const handleAddToCartFromModal = ({ product: p, shop: s, quantity, selectedOptions, totalPrice }) => {
-    // Custom price per unit
+  const handleAddToCartFromModal = ({ product: p, shop: s, quantity, selectedOptions, totalPrice, itemNote }) => {
+    if (isClosed) {
+      Alert.alert('Thông báo', 'Quán đang đóng cửa, không thể đặt món!');
+      return;
+    }
     const unitPrice = quantity > 0 ? totalPrice / quantity : p.basePrice || p.price;
-    addToCart(p, s, quantity, selectedOptions, unitPrice);
+    addToCart(p, s || shop, quantity, selectedOptions, unitPrice, itemNote);
   };
 
   return (
@@ -181,7 +229,9 @@ export default function ShopDetailScreen({ route, navigation }) {
               <Text style={styles.metaTimeText}>15-25 phút</Text>
             </View>
             <Text style={styles.metaDivider}>•</Text>
-            <Text style={styles.statusOpen}>Đang mở cửa</Text>
+            <Text style={[styles.statusOpen, isClosed && styles.statusClosed]}>
+              {isClosed ? (shop?.isOpen === false ? '⛔ Đã đóng cửa' : '⛔ Tạm dừng nhận đơn') : '🟢 Đang mở cửa'}
+            </Text>
           </View>
           <View style={styles.addressRow}>
             <MapPin size={14} color="#9CA3AF" style={{ marginRight: 4 }} />
@@ -189,9 +239,24 @@ export default function ShopDetailScreen({ route, navigation }) {
               {shop?.locationDetail || shop?.address || 'TP. Hồ Chí Minh'}
             </Text>
           </View>
+
+          {/* Banner thông báo đóng cửa */}
+          {isClosed && (
+            <View style={styles.closedWarningBanner}>
+              <Text style={{ fontSize: 20 }}>⛔</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.closedWarningTitle}>
+                  Quán hiện đang {shop?.isOpen === false ? 'tạm đóng cửa' : 'tạm ngưng nhận đơn'}
+                </Text>
+                <Text style={styles.closedWarningDesc}>
+                  Quý khách có thể xem thực đơn nhưng chưa thể đặt món lúc này. Vui lòng quay lại sau!
+                </Text>
+              </View>
+            </View>
+          )}
           
           <TouchableOpacity style={styles.chatButton} onPress={handleMessageShop}>
-            <MessageCircle size={18} color="#FFFFFF" />
+            <MessageCircle size={18} color="#111827" />
             <Text style={styles.chatButtonText}>Nhắn tin cho quán</Text>
           </TouchableOpacity>
         </View>
@@ -286,22 +351,16 @@ export default function ShopDetailScreen({ route, navigation }) {
                     <View style={styles.actionWrap}>
                       {qty === 0 ? (
                         <TouchableOpacity
-                          style={styles.addBtn}
+                          style={[styles.addBtn, isClosed && styles.addBtnDisabled]}
                           onPress={() => handleProductPress(product)}
                         >
-                          <Plus size={18} color="#111827" />
+                          <Plus size={18} color={isClosed ? '#9CA3AF' : '#111827'} />
                         </TouchableOpacity>
                       ) : (
                         <View style={styles.stepperWrap}>
                           <TouchableOpacity
                             style={styles.stepBtn}
-                            onPress={() => {
-                              if (product.options && product.options.length > 0) {
-                                navigation.navigate('Cart');
-                              } else {
-                                removeFromCart(product.id, []);
-                              }
-                            }}
+                            onPress={() => handleDecrementProduct(product)}
                           >
                             <Minus size={14} color="#111827" />
                           </TouchableOpacity>
@@ -372,23 +431,26 @@ export default function ShopDetailScreen({ route, navigation }) {
       </ScrollView>
 
       {/* Floating Bottom Cart Bar */}
-      {totalCount > 0 && (
+      {currentShopTotalCount > 0 && (
         <View style={styles.floatingCartBar}>
           <View style={styles.cartInfo}>
             <View style={styles.cartIconBadge}>
               <ShoppingBasket size={20} color="#111827" />
               <View style={styles.countBadge}>
-                <Text style={styles.countBadgeText}>{totalCount}</Text>
+                <Text style={styles.countBadgeText}>{currentShopTotalCount}</Text>
               </View>
             </View>
             <View style={{ marginLeft: 12 }}>
               <Text style={styles.cartTotalTitle}>Tổng tạm tính</Text>
-              <Text style={styles.cartTotalPrice}>{formatVND(totalPrice)}</Text>
+              <Text style={styles.cartTotalPrice}>{formatVND(currentShopTotalPrice)}</Text>
             </View>
           </View>
           <TouchableOpacity
             style={styles.checkoutBtn}
-            onPress={() => navigation.navigate('Cart')}
+            onPress={() => {
+              setActiveShopId(shopId);
+              navigation.navigate('Cart');
+            }}
           >
             <Text style={styles.checkoutBtnText}>XEM GIỎ</Text>
           </TouchableOpacity>
@@ -496,6 +558,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
+  },
+  statusClosed: {
+    color: '#DC2626',
+    backgroundColor: '#FEE2E2',
+  },
+  closedWarningBanner: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 10,
+    marginBottom: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  closedWarningTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#B91C1C',
+    textTransform: 'uppercase',
+  },
+  closedWarningDesc: {
+    fontSize: 11,
+    color: '#DC2626',
+    marginTop: 2,
+  },
+  addBtnDisabled: {
+    backgroundColor: '#E5E7EB',
   },
   addressRow: {
     flexDirection: 'row',

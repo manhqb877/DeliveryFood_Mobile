@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -6,8 +7,8 @@ import apiClient from './apiClient';
 export const BACKGROUND_LOCATION_TASK = 'SHIPPER_BACKGROUND_LOCATION';
 const SESSION_KEY = 'shipper_session';
 
-// Đăng ký task ở top-level (bắt buộc của Expo)
-if (!TaskManager.isTaskDefined(BACKGROUND_LOCATION_TASK)) {
+// Đăng ký task ở top-level (bắt buộc của Expo, chỉ chạy trên Native)
+if (Platform.OS !== 'web' && TaskManager?.isTaskDefined && !TaskManager.isTaskDefined(BACKGROUND_LOCATION_TASK)) {
   TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
     if (error) {
       console.warn('[BG Location]', error.message);

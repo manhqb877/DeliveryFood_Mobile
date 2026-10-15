@@ -108,6 +108,12 @@ export default function HistoryDetailModal({ visible, delivery, onClose }) {
     );
   };
 
+  const modalShopName =
+    order?.shopName ||
+    delivery?.shopName ||
+    (delivery?.pickupAddress ? delivery.pickupAddress.split(" - ")[0]?.trim() : "") ||
+    "Quán ăn";
+
   return (
     <Modal
       visible={visible}
@@ -173,7 +179,7 @@ export default function HistoryDetailModal({ visible, delivery, onClose }) {
                     {/* Đánh giá Cửa hàng */}
                     <View style={styles.shopReviewBox}>
                       <View style={styles.reviewItemHeader}>
-                        <Text style={styles.reviewLabel}>Đánh giá Quán ({order?.shopName || "Cửa hàng"}):</Text>
+                        <Text style={styles.reviewLabel}>Đánh giá Quán ({modalShopName}):</Text>
                         {renderStars(review.shopRating || 5, 15)}
                       </View>
                       {review.shopComment ? (
@@ -229,7 +235,7 @@ export default function HistoryDetailModal({ visible, delivery, onClose }) {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.routePointType}>Điểm lấy hàng (Nhà hàng):</Text>
-                    <Text style={styles.routePointName}>{order?.shopName || "Quán ăn"}</Text>
+                    <Text style={styles.routePointName}>{modalShopName}</Text>
                     <Text style={styles.routePointAddress}>{delivery.pickupAddress}</Text>
                   </View>
                 </View>

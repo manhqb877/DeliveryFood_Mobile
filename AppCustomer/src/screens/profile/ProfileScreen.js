@@ -124,8 +124,8 @@ export default function ProfileScreen({ navigation }) {
             onPress={() => navigation.navigate('AddressList')}
           >
             <View style={styles.menuItemLeft}>
-              <View style={[styles.menuIconWrap, { backgroundColor: '#E0F2FE' }]}>
-                <MapPin size={20} color="#0284C7" />
+              <View style={[styles.menuIconWrap, { backgroundColor: '#FEF3C7' }]}>
+                <MapPin size={20} color="#D97706" />
               </View>
               <View style={{ marginLeft: 12 }}>
                 <Text style={styles.menuItemTitle}>Sổ địa chỉ nhận hàng</Text>
@@ -143,8 +143,8 @@ export default function ProfileScreen({ navigation }) {
             onPress={() => navigation.navigate('ChangePassword')}
           >
             <View style={styles.menuItemLeft}>
-              <View style={[styles.menuIconWrap, { backgroundColor: '#FEF3C7' }]}>
-                <KeyRound size={20} color="#D97706" />
+              <View style={[styles.menuIconWrap, { backgroundColor: '#F3F4F6' }]}>
+                <KeyRound size={20} color="#111827" />
               </View>
               <View style={{ marginLeft: 12 }}>
                 <Text style={styles.menuItemTitle}>Đổi mật khẩu</Text>
@@ -162,8 +162,8 @@ export default function ProfileScreen({ navigation }) {
             onPress={() => navigation.navigate('Đơn hàng')}
           >
             <View style={styles.menuItemLeft}>
-              <View style={[styles.menuIconWrap, { backgroundColor: '#DCFCE7' }]}>
-                <ShoppingBasket size={20} color="#16A34A" />
+              <View style={[styles.menuIconWrap, { backgroundColor: '#FFFBEB' }]}>
+                <ShoppingBasket size={20} color="#FFB800" />
               </View>
               <View style={{ marginLeft: 12 }}>
                 <Text style={styles.menuItemTitle}>Đơn hàng của bạn</Text>
@@ -231,11 +231,11 @@ const styles = StyleSheet.create({
   userCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFB700',
+    backgroundColor: '#FFB800',
     margin: 16,
     padding: 18,
     borderRadius: 20,
-    shadowColor: '#FFB700',
+    shadowColor: '#FFB800',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,

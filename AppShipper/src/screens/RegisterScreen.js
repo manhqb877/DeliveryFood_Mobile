@@ -215,12 +215,12 @@ export default function RegisterScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="light-content" backgroundColor="#FF6B35" />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFB800" />
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.container}>
         
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} activeOpacity={0.7}>
-            <ChevronLeft size={22} color="#FF6B35" />
+            <ChevronLeft size={22} color="#D97706" />
             <Text style={styles.backText}>Quay lại</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Đăng ký Tài xế (Shipper)</Text>
@@ -400,7 +400,7 @@ export default function RegisterScreen({ navigation }) {
                   >
                     {resending ? (
                       <View style={{ flexDirection: "row", alignItems: "center" }}>
-                        <ActivityIndicator size="small" color="#FF6B35" style={{ marginRight: 6 }} />
+                        <ActivityIndicator size="small" color="#D97706" style={{ marginRight: 6 }} />
                         <Text style={styles.resendText}>Đang gửi lại...</Text>
                       </View>
                     ) : countdown > 0 ? (
@@ -447,50 +447,50 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingRight: 6,
   },
-  backText: { color: "#FF6B35", fontSize: 15, fontWeight: "700" },
+  backText: { color: "#D97706", fontSize: 15, fontWeight: "700" },
   headerTitle: { fontSize: 17, fontWeight: "800", color: "#111827" },
   scrollContent: { padding: 16 },
   formCard: { 
     backgroundColor: "#fff", 
-    borderRadius: 16, 
+    borderRadius: 20, 
     padding: 20, 
-    shadowColor: "#000", 
-    shadowOpacity: 0.05, 
-    shadowRadius: 10, 
-    elevation: 2,
+    shadowColor: "#0F172A", 
+    shadowOpacity: 0.08, 
+    shadowRadius: 12, 
+    elevation: 4,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "#F1F5F9",
   },
   inputGroup: { marginBottom: 16 },
-  label: { fontSize: 14, fontWeight: "700", color: "#374151", marginBottom: 6 },
+  label: { fontSize: 13, fontWeight: "700", color: "#374151", marginBottom: 6 },
   input: { 
-    borderWidth: 1, 
-    borderColor: "#D1D5DB", 
-    borderRadius: 10, 
+    borderWidth: 1.5, 
+    borderColor: "#E2E8F0", 
+    borderRadius: 12, 
     paddingHorizontal: 14, 
     paddingVertical: 12, 
     fontSize: 15,
     color: "#111827",
-    backgroundColor: "#F9FAFB",
+    backgroundColor: "#F8FAFC",
   },
   fieldHelpText: {
     fontSize: 12,
-    color: "#6B7280",
+    color: "#64748B",
     marginTop: 4,
   },
   typeContainer: { flexDirection: "row", gap: 10 },
   typeBtn: {
     flex: 1,
     paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+    borderRadius: 12,
     alignItems: "center",
-    backgroundColor: "#F9FAFB",
+    backgroundColor: "#F8FAFC",
   },
-  typeBtnActive: { borderColor: "#FF6B35", backgroundColor: "#FFF5F0" },
-  typeText: { fontSize: 14, color: "#4B5563", fontWeight: "600" },
-  typeTextActive: { color: "#FF6B35", fontWeight: "800" },
+  typeBtnActive: { borderColor: "#FFB800", backgroundColor: "#FEF3C7" },
+  typeText: { fontSize: 14, color: "#64748B", fontWeight: "600" },
+  typeTextActive: { color: "#B45309", fontWeight: "800" },
   autocompleteContainer: {
     position: "absolute",
     top: 75,
@@ -498,57 +498,56 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 8,
+    borderColor: "#E2E8F0",
+    borderRadius: 12,
     shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 5,
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 6,
     zIndex: 1000,
   },
-  autocompleteItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },
+  autocompleteItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" },
   autocompleteText: { fontSize: 14, color: "#111827" },
   submitBtn: {
-    backgroundColor: "#FF6B35", 
-    borderRadius: 12, 
-    paddingVertical: 14, 
+    backgroundColor: "#111827", 
+    borderRadius: 16, 
+    paddingVertical: 15, 
     alignItems: "center", 
     marginTop: 10,
-    shadowColor: "#FF6B35",
+    shadowColor: "#111827",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowRadius: 8,
+    elevation: 5,
   },
-  submitBtnText: { color: "#fff", fontSize: 16, fontWeight: "800" },
+  submitBtnText: { color: "#FFB800", fontSize: 15, fontWeight: "900", letterSpacing: 0.3 },
   otpNoticeBox: {
     flexDirection: "row",
     alignItems: "flex-start",
-    backgroundColor: "#FFF7ED",
+    backgroundColor: "#FEF3C7",
     borderWidth: 1,
-    borderColor: "#FFEDD5",
+    borderColor: "#FDE68A",
     padding: 14,
-    borderRadius: 12,
+    borderRadius: 14,
     marginBottom: 20,
   },
   otpNoticeTitle: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#9A3412",
+    color: "#92400E",
     marginBottom: 4,
   },
   otpPrompt: { 
     fontSize: 13, 
-    color: "#4B5563", 
+    color: "#475569", 
     lineHeight: 18,
   },
   otpInput: {
     fontSize: 22,
     fontWeight: "800",
     textAlign: "center",
-    /* letterSpacing removed */
     backgroundColor: "#FFFFFF",
-    borderColor: "#FF6B35",
+    borderColor: "#FFB800",
   },
   otpActionsRow: {
     flexDirection: "row",
@@ -558,7 +557,7 @@ const styles = StyleSheet.create({
     marginTop: 18,
   },
   resendBtn: { padding: 4 },
-  resendText: { color: "#FF6B35", fontSize: 14, fontWeight: "700" },
+  resendText: { color: "#D97706", fontSize: 14, fontWeight: "700" },
   editBtn: { padding: 4 },
-  editText: { color: "#6B7280", fontSize: 14, textDecorationLine: "underline" },
+  editText: { color: "#64748B", fontSize: 14, textDecorationLine: "underline" },
 });

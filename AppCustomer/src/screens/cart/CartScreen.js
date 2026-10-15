@@ -29,6 +29,13 @@ import { coreApi } from '../../api/coreApi';
 
 export default function CartScreen({ navigation }) {
   const {
+    carts,
+    allCartsTotalCount,
+    allCartsTotalPrice,
+    allCartsItems,
+    activeShopId,
+    setActiveShopId,
+    activeCart,
     items,
     cartShop,
     cartId,
@@ -38,8 +45,11 @@ export default function CartScreen({ navigation }) {
     updateCartItem,
     removeCartItem,
     clearCart,
+    clearAllCarts,
     refreshCart,
   } = useCart();
+
+  const [shopFilter, setShopFilter] = useState('ALL');
 
   useFocusEffect(
     useCallback(() => {
@@ -150,20 +160,20 @@ export default function CartScreen({ navigation }) {
           >
             <ArrowLeft size={22} color="#111827" />
           </TouchableOpacity>
-          <ShoppingBasket size={22} color="#D97706" style={{ marginLeft: 6 }} />
+          <ShoppingBasket size={22} color="#FFB800" style={{ marginLeft: 6 }} />
           <Text style={styles.headerTitle}>Giỏ hàng</Text>
-          {totalCount > 0 && (
+          {(allCartsTotalCount || totalCount) > 0 && (
             <View style={styles.badge}>
-              <Text style={styles.badgeText}>{totalCount} món</Text>
+              <Text style={styles.badgeText}>{allCartsTotalCount || totalCount} món</Text>
             </View>
           )}
         </View>
       </View>
 
-      {items.length === 0 ? (
+      {allCartsTotalCount === 0 ? (
         <View style={styles.emptyContainer}>
           <View style={styles.emptyIconCircle}>
-            <ShoppingBasket size={54} color="#D97706" />
+            <ShoppingBasket size={54} color="#FFB800" />
           </View>
           <Text style={styles.emptyTitle}>“Hổng” có gì trong giỏ hết</Text>
           <Text style={styles.emptySubtitle}>
@@ -183,122 +193,225 @@ export default function CartScreen({ navigation }) {
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
-            {/* Shop Header */}
-            <View style={styles.shopSection}>
-              <View style={styles.shopHeader}>
-                <View style={styles.shopTitleRow}>
-                  <Store size={18} color="#374151" style={{ marginRight: 6 }} />
-                  <Text style={styles.shopName}>
-                    {cartShop?.shopName || (cartShop?.id ? `Quán #${cartShop.id}` : 'Quán ăn')}
-                  </Text>
-                  <Text style={styles.shopItemCount}>({items.length} loại)</Text>
-                </View>
-                <TouchableOpacity onPress={handleClearAll} style={styles.clearAllBtn}>
-                  <Trash2 size={14} color="#EF4444" style={{ marginRight: 4 }} />
-                  <Text style={styles.clearAllText}>Xóa tất cả</Text>
-                </TouchableOpacity>
-              </View>
+            {/* Multiple Shops Selector Tabs */}
+            {carts.filter((c) => (c.items || []).length > 0).length > 1 && (
+              <View style={styles.shopSelectorContainer}>
+                <Text style={styles.shopSelectorTitle}>CÁC QUÁN BẠN ĐANG CHỌN MÓN</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.shopTabsRow}
+                >
+                  {/* Tab xem tất cả */}
+                  <TouchableOpacity
+                    style={[
+                      styles.shopSelectTab,
+                      shopFilter === 'ALL' && styles.shopSelectTabActive,
+                    ]}
+                    onPress={() => setShopFilter('ALL')}
+                  >
+                    <Store
+                      size={14}
+                      color={shopFilter === 'ALL' ? '#111827' : '#6B7280'}
+                      style={{ marginRight: 6 }}
+                    />
+                    <Text
+                      style={[
+                        styles.shopSelectTabText,
+                        shopFilter === 'ALL' && styles.shopSelectTabTextActive,
+                      ]}
+                    >
+                      Tất cả các quán ({allCartsTotalCount})
+                    </Text>
+                  </TouchableOpacity>
 
-              {/* Items List */}
-              <View style={styles.itemsList}>
-                {items.map((item) => {
-                  const optionsStr =
-                    item.selectedOptions && item.selectedOptions.length > 0
-                      ? item.selectedOptions
-                          .map((o) => `${o.group || o.groupName}: ${o.option || o.optionName}`)
-                          .join(' · ')
-                      : 'Tùy chọn: Mặc định';
-
-                  return (
-                    <View key={item.id} style={styles.itemRow}>
-                      {/* Delete button */}
-                      <TouchableOpacity
-                        style={styles.deleteBtn}
-                        onPress={() => handleRemove(item)}
-                      >
-                        <X size={16} color="#9CA3AF" />
-                      </TouchableOpacity>
-
-                      {/* Image */}
-                      <Image
-                        source={{
-                          uri:
-                            item.imageUrl ||
-                            item.product?.imageUrl ||
-                            'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300&auto=format&fit=crop&q=80',
-                        }}
-                        style={styles.itemImage}
-                        resizeMode="contain"
-                      />
-
-                      {/* Info */}
-                      <View style={styles.itemInfo}>
-                        <Text style={styles.itemName} numberOfLines={2}>
-                          {item.itemName}
-                        </Text>
-                        <Text style={styles.itemOptions} numberOfLines={2}>
-                          {optionsStr}
-                        </Text>
-                        {item.itemNote ? (
-                          <Text style={styles.itemNote} numberOfLines={1}>
-                            "{item.itemNote}"
-                          </Text>
-                        ) : null}
-
-                        {/* Button Sửa Option */}
+                  {carts
+                    .filter((c) => (c.items || []).length > 0)
+                    .map((c) => {
+                      const isSelected = shopFilter === String(c.shopId);
+                      const count = (c.items || []).reduce((sum, i) => sum + i.quantity, 0);
+                      return (
                         <TouchableOpacity
-                          style={styles.editBtn}
-                          onPress={() => handleOpenEdit(item)}
-                          disabled={loadingEdit === item.id}
+                          key={c.id}
+                          style={[styles.shopSelectTab, isSelected && styles.shopSelectTabActive]}
+                          onPress={() => {
+                            setShopFilter(String(c.shopId));
+                            setActiveShopId(c.shopId);
+                          }}
                         >
-                          {loadingEdit === item.id ? (
-                            <ActivityIndicator size="small" color="#2563EB" />
-                          ) : (
-                            <>
-                              <Edit3 size={13} color="#2563EB" style={{ marginRight: 4 }} />
-                              <Text style={styles.editBtnText}>Sửa</Text>
-                            </>
-                          )}
+                          <Store
+                            size={14}
+                            color={isSelected ? '#111827' : '#6B7280'}
+                            style={{ marginRight: 6 }}
+                          />
+                          <Text
+                            style={[
+                              styles.shopSelectTabText,
+                              isSelected && styles.shopSelectTabTextActive,
+                            ]}
+                          >
+                            {c.shopName || `Quán #${c.shopId}`} ({count})
+                          </Text>
                         </TouchableOpacity>
-                      </View>
-
-                      {/* Right: Price & Stepper */}
-                      <View style={styles.itemRight}>
-                        <Text style={styles.itemTotalPrice}>
-                          {formatVND(item.totalPrice || item.unitPrice * item.quantity)}
-                        </Text>
-                        <Text style={styles.itemUnitPrice}>
-                          {formatVND(item.unitPrice)} / cái
-                        </Text>
-
-                        <View style={styles.stepper}>
-                          <TouchableOpacity
-                            style={styles.stepBtn}
-                            onPress={() => handleQuantity(item, -1)}
-                          >
-                            <Minus size={13} color="#374151" />
-                          </TouchableOpacity>
-                          <Text style={styles.qtyText}>{item.quantity}</Text>
-                          <TouchableOpacity
-                            style={styles.stepBtn}
-                            onPress={() => handleQuantity(item, 1)}
-                          >
-                            <Plus size={13} color="#374151" />
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    </View>
-                  );
-                })}
+                      );
+                    })}
+                </ScrollView>
               </View>
-            </View>
+            )}
+
+            {/* List of Carts to Display */}
+            {(shopFilter === 'ALL'
+              ? carts.filter((c) => (c.items || []).length > 0)
+              : carts.filter((c) => String(c.shopId) === String(shopFilter))
+            ).map((currentDisplayCart) => {
+              const currentDisplayItems = currentDisplayCart.items || [];
+              const currentShopTotal = currentDisplayItems.reduce(
+                (sum, i) => sum + Number(i.totalPrice || i.unitPrice * i.quantity || 0),
+                0
+              );
+
+              return (
+                <View key={currentDisplayCart.id} style={styles.shopSection}>
+                  <View style={styles.shopHeader}>
+                    <View style={styles.shopTitleRow}>
+                      <Store size={18} color="#374151" style={{ marginRight: 6 }} />
+                      <Text style={styles.shopName}>
+                        {currentDisplayCart.shopName || `Quán #${currentDisplayCart.shopId}`}
+                      </Text>
+                      <Text style={styles.shopItemCount}>({currentDisplayItems.length} loại)</Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => clearCart(currentDisplayCart.id)}
+                      style={styles.clearAllBtn}
+                    >
+                      <Trash2 size={14} color="#EF4444" style={{ marginRight: 4 }} />
+                      <Text style={styles.clearAllText}>Xóa quán này</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Items List of this shop */}
+                  <View style={styles.itemsList}>
+                    {currentDisplayItems.map((item) => {
+                      const optionsStr =
+                        item.selectedOptions && item.selectedOptions.length > 0
+                          ? item.selectedOptions
+                              .map((o) => `${o.group || o.groupName}: ${o.option || o.optionName}`)
+                              .join(' · ')
+                          : 'Tùy chọn: Mặc định';
+
+                      return (
+                        <View key={item.id} style={styles.itemRow}>
+                          {/* Delete button */}
+                          <TouchableOpacity
+                            style={styles.deleteBtn}
+                            onPress={() => handleRemove(item)}
+                          >
+                            <X size={16} color="#9CA3AF" />
+                          </TouchableOpacity>
+
+                          {/* Image */}
+                          <Image
+                            source={{
+                              uri:
+                                item.imageUrl ||
+                                item.product?.imageUrl ||
+                                'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300&auto=format&fit=crop&q=80',
+                            }}
+                            style={styles.itemImage}
+                            resizeMode="contain"
+                          />
+
+                          {/* Info */}
+                          <View style={styles.itemInfo}>
+                            <Text style={styles.itemName} numberOfLines={2}>
+                              {item.itemName}
+                            </Text>
+                            <Text style={styles.itemOptions} numberOfLines={2}>
+                              {optionsStr}
+                            </Text>
+                            {item.itemNote ? (
+                              <Text style={styles.itemNote} numberOfLines={1}>
+                                "{item.itemNote}"
+                              </Text>
+                            ) : null}
+
+                            {/* Button Sửa Option */}
+                            <TouchableOpacity
+                              style={styles.editBtn}
+                              onPress={() => handleOpenEdit(item)}
+                              disabled={loadingEdit === item.id}
+                            >
+                              {loadingEdit === item.id ? (
+                                <ActivityIndicator size="small" color="#2563EB" />
+                              ) : (
+                                <>
+                                  <Edit3 size={13} color="#2563EB" style={{ marginRight: 4 }} />
+                                  <Text style={styles.editBtnText}>Sửa</Text>
+                                </>
+                              )}
+                            </TouchableOpacity>
+                          </View>
+
+                          {/* Right: Price & Stepper */}
+                          <View style={styles.itemRight}>
+                            <Text style={styles.itemTotalPrice}>
+                              {formatVND(item.totalPrice || item.unitPrice * item.quantity)}
+                            </Text>
+                            <Text style={styles.itemUnitPrice}>
+                              {formatVND(item.unitPrice)} / cái
+                            </Text>
+
+                            <View style={styles.stepper}>
+                              <TouchableOpacity
+                                style={styles.stepBtn}
+                                onPress={() => handleQuantity(item, -1)}
+                              >
+                                <Minus size={13} color="#374151" />
+                              </TouchableOpacity>
+                              <Text style={styles.qtyText}>{item.quantity}</Text>
+                              <TouchableOpacity
+                                style={styles.stepBtn}
+                                onPress={() => handleQuantity(item, 1)}
+                              >
+                                <Plus size={13} color="#374151" />
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </View>
+
+                  {/* Shop Subtotal row if viewing ALL */}
+                  {shopFilter === 'ALL' && carts.filter((c) => (c.items || []).length > 0).length > 1 && (
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#F9FAFB', borderTopWidth: 1, borderTopColor: '#F3F4F6' }}>
+                      <Text style={{ fontSize: 13, color: '#6B7280', fontWeight: '500' }}>Tạm tính quán này:</Text>
+                      <Text style={{ fontSize: 14, color: '#111827', fontWeight: '700' }}>{formatVND(currentShopTotal)}</Text>
+                    </View>
+                  )}
+                </View>
+              );
+            })}
 
             {/* Tóm tắt đơn hàng */}
             <View style={styles.summaryCard}>
-              <Text style={styles.summaryTitle}>Tóm tắt đơn hàng</Text>
+              <Text style={styles.summaryTitle}>
+                {shopFilter === 'ALL' && carts.filter((c) => (c.items || []).length > 0).length > 1
+                  ? `Tóm tắt đơn hàng (${carts.filter((c) => (c.items || []).length > 0).length} quán - ${allCartsTotalCount} món)`
+                  : 'Tóm tắt đơn hàng'}
+              </Text>
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Tổng cộng</Text>
-                <Text style={styles.summaryTotal}>{formatVND(totalPrice)}</Text>
+                <Text style={styles.summaryTotal}>
+                  {formatVND(
+                    shopFilter === 'ALL'
+                      ? (allCartsTotalPrice || totalPrice)
+                      : (carts.find((c) => String(c.shopId) === String(shopFilter))?.items || []).reduce(
+                          (s, i) => s + Number(i.totalPrice || i.unitPrice * i.quantity || 0),
+                          0
+                        )
+                  )}
+                </Text>
               </View>
             </View>
 
@@ -309,11 +422,20 @@ export default function CartScreen({ navigation }) {
           <View style={styles.bottomBar}>
             <TouchableOpacity
               style={styles.checkoutBtn}
-              onPress={() => navigation.navigate('Checkout')}
+              onPress={() => {
+                navigation.navigate('Checkout', {
+                  mode: shopFilter === 'ALL' ? 'ALL' : 'SINGLE',
+                  shopId: shopFilter === 'ALL' ? null : shopFilter,
+                });
+              }}
               activeOpacity={0.8}
             >
-              <Text style={styles.checkoutBtnText}>THANH TOÁN</Text>
-              <ArrowRight size={18} color="#FFFFFF" style={{ marginLeft: 6 }} />
+              <Text style={styles.checkoutBtnText}>
+                {shopFilter === 'ALL' && carts.filter((c) => (c.items || []).length > 0).length > 1
+                  ? `THANH TOÁN TẤT CẢ (${allCartsTotalCount} MÓN)`
+                  : 'THANH TOÁN'}
+              </Text>
+              <ArrowRight size={18} color="#111827" style={{ marginLeft: 6 }} />
             </TouchableOpacity>
           </View>
         </View>
@@ -604,22 +726,64 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   checkoutBtn: {
-    backgroundColor: '#0284C7',
+    backgroundColor: '#FFB800',
     height: 52,
-    borderRadius: 14,
+    borderRadius: 16,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#0284C7',
+    shadowColor: '#FFB800',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
     elevation: 4,
   },
   checkoutBtnText: {
-    color: '#FFFFFF',
+    color: '#111827',
     fontSize: 16,
+    fontWeight: '900',
+    letterSpacing: 0.6,
+  },
+  shopSelectorContainer: {
+    backgroundColor: '#FFFFFF',
+    paddingTop: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  shopSelectorTitle: {
+    fontSize: 11,
     fontWeight: '800',
+    color: '#6B7280',
     letterSpacing: 0.5,
+    marginHorizontal: 16,
+    marginBottom: 8,
+  },
+  shopTabsRow: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  shopSelectTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+  },
+  shopSelectTabActive: {
+    backgroundColor: '#FFFBEB',
+    borderColor: '#FFB800',
+  },
+  shopSelectTabText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#4B5563',
+  },
+  shopSelectTabTextActive: {
+    color: '#92400E',
+    fontWeight: '800',
   },
 });

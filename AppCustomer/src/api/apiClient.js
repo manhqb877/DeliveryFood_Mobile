@@ -1,7 +1,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const GATEWAY_URL = 'https://unentwined-johanne-biasedly.ngrok-free.dev';
+export const GATEWAY_URL = 'http://10.62.148.11:8080';
 const BASE_URL = `${GATEWAY_URL}/api/v1`;
 
 const apiClient = axios.create({

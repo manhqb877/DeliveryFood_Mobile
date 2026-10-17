@@ -6,10 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 
 export default function NotificationToast() {
   const { activeToast, dismissToast } = useNotification();
-  let navigation = null;
-  try {
-    navigation = useNavigation();
-  } catch (_) {}
+  const navigation = useNavigation();
 
   if (!activeToast) return null;
 

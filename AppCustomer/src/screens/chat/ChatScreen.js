@@ -17,11 +17,10 @@ import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { loadSoundAsync, playSoundAsync, unloadSoundAsync } from '../../utils/soundHelper';
 import { useAuth } from '../../context/AuthContext';
-import { GATEWAY_URL } from '../../api/apiClient';
+import { GATEWAY_URL, resolveGatewayUrl } from '../../api/apiClient';
 
-// Using gateway directly for WebSocket if needed, or notification service
-const WS_URL = `${GATEWAY_URL}/ws-chat`;
-const API_BASE = `${GATEWAY_URL}/api/v1`;
+const getWsUrl = () => `${resolveGatewayUrl ? resolveGatewayUrl() : GATEWAY_URL}/ws-chat`;
+const getApiBase = () => `${resolveGatewayUrl ? resolveGatewayUrl() : GATEWAY_URL}/api/v1`;
 
 export default function ChatScreen({ route, navigation }) {
   const { conversationId, shopName, shopLogo, recipientId } = route.params;
@@ -51,14 +50,24 @@ export default function ChatScreen({ route, navigation }) {
     const targetTopicId = user?.id || guestSessionId;
     if (!targetTopicId || !conversationId) return;
 
-    const WS_URL = `${GATEWAY_URL}/ws-chat`;
-    
-    const client = new Client({
-      webSocketFactory: () => new SockJS(WS_URL),
-      reconnectDelay: 4000,
-      heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000,
-    });
+    const wsUrl = getWsUrl();
+    if (typeof window !== 'undefined' && window.location?.protocol === 'https:' && wsUrl.startsWith('http:')) {
+      console.warn('[SockJS] Trang web đang mở qua HTTPS nhưng URL backend là HTTP. Trình duyệt chặn kết nối không an toàn. Vui lòng mở qua http://localhost:8089 để test.');
+      return;
+    }
+
+    let client = null;
+    try {
+      client = new Client({
+        webSocketFactory: () => new SockJS(wsUrl),
+        reconnectDelay: 4000,
+        heartbeatIncoming: 4000,
+        heartbeatOutgoing: 4000,
+      });
+    } catch (err) {
+      console.warn('[SockJS] Không thể khởi tạo kết nối WebSocket:', err);
+      return;
+    }
 
     client.onConnect = () => {
       console.log('STOMP connected!');
@@ -114,7 +123,7 @@ export default function ChatScreen({ route, navigation }) {
   const fetchMessages = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE}/conversations/${conversationId}/messages`);
+      const res = await fetch(`${getApiBase()}/conversations/${conversationId}/messages`);
       const json = await res.json();
       if (json.data) {
         setMessages(json.data.reverse()); // Assume newest last or first? Usually REST returns newest first or oldest first. Let's see. Wait, in ChatBubble we just set messages.

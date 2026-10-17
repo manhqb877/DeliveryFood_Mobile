@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { loadSoundAsync, playSoundAsync, unloadSoundAsync } from '../utils/soundHelper';
 import { useAuth } from './AuthContext';
 import { notificationApi } from '../api/notificationApi';
-import { GATEWAY_URL } from '../api/apiClient';
+import { GATEWAY_URL, resolveGatewayUrl } from '../api/apiClient';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 
@@ -124,13 +124,26 @@ export function NotificationProvider({ children }) {
   useEffect(() => {
     if (!user?.id) return;
 
-    const wsUrl = `${GATEWAY_URL}/ws-chat`;
-    const client = new Client({
-      webSocketFactory: () => new SockJS(wsUrl),
-      reconnectDelay: 4000,
-      heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000,
-    });
+    const baseGw = resolveGatewayUrl ? resolveGatewayUrl() : GATEWAY_URL;
+    const wsUrl = `${baseGw}/ws-chat`;
+
+    if (typeof window !== 'undefined' && window.location?.protocol === 'https:' && wsUrl.startsWith('http:')) {
+      console.warn('[SockJS] Trang web đang mở qua HTTPS nhưng URL backend là HTTP. Trình duyệt chặn kết nối không an toàn. Vui lòng mở qua http://localhost:8089 để test.');
+      return;
+    }
+
+    let client = null;
+    try {
+      client = new Client({
+        webSocketFactory: () => new SockJS(wsUrl),
+        reconnectDelay: 4000,
+        heartbeatIncoming: 4000,
+        heartbeatOutgoing: 4000,
+      });
+    } catch (err) {
+      console.warn('[SockJS] Không thể khởi tạo kết nối WebSocket:', err);
+      return;
+    }
 
     const handleIncoming = (payload) => {
       try {

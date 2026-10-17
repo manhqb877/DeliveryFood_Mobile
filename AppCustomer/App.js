@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -106,6 +106,36 @@ function MainTabs() {
   );
 }
 
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('AppCustomer ErrorBoundary caught an error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorTitle}>Đã xảy ra lỗi giao diện</Text>
+          <Text style={styles.errorDesc}>{this.state.error?.message || String(this.state.error)}</Text>
+          <TouchableOpacity style={styles.errorBtn} onPress={() => this.setState({ hasError: false, error: null })}>
+            <Text style={styles.errorBtnText}>Thử lại</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // Root Navigation Switcher
 function RootNavigator() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -144,6 +174,7 @@ function RootNavigator() {
           </>
         )}
       </Stack.Navigator>
+      <NotificationToast />
     </NavigationContainer>
   );
 }
@@ -153,14 +184,15 @@ export default function App() {
     <GestureHandlerRootView style={styles.appRoot}>
       <View style={Platform.OS === 'web' ? styles.webWrapper : styles.mobileWrapper}>
         <SafeAreaProvider>
-          <AuthProvider>
-            <NotificationProvider>
-              <CartProvider>
-                <RootNavigator />
-                <NotificationToast />
-              </CartProvider>
-            </NotificationProvider>
-          </AuthProvider>
+          <ErrorBoundary>
+            <AuthProvider>
+              <NotificationProvider>
+                <CartProvider>
+                  <RootNavigator />
+                </CartProvider>
+              </NotificationProvider>
+            </AuthProvider>
+          </ErrorBoundary>
         </SafeAreaProvider>
       </View>
     </GestureHandlerRootView>
@@ -195,5 +227,38 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    backgroundColor: '#FFFFFF',
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  errorDesc: {
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 20,
+    maxWidth: 320,
+  },
+  errorBtn: {
+    backgroundColor: '#FFB800',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 14,
+  },
+  errorBtnText: {
+    color: '#0F172A',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

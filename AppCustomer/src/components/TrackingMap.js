@@ -257,13 +257,13 @@ export default function TrackingMap({ orderId, orderStatus, deliveryAddress, sho
 
   useEffect(() => {
     const target = isMultiShop ? stop1 : pickup;
-    if (!target?.lat) return;
+    if (!target?.lat || !target?.lng) return;
 
     if (shipperLocation?.lat && shipperLocation?.lng && !initialShipperOriginRef.current) {
       initialShipperOriginRef.current = { lat: shipperLocation.lat, lng: shipperLocation.lng };
     }
 
-    const origin = initialShipperOriginRef.current || shipperLocation || { lat: 10.78033, lng: 106.65691 };
+    const origin = shipperLocation || initialShipperOriginRef.current || { lat: 10.78033, lng: 106.65691 };
 
     fetchVietmapRoute(origin, target).then((route2) => {
       if (route2 && route2.length > 0) {
@@ -276,7 +276,7 @@ export default function TrackingMap({ orderId, orderStatus, deliveryAddress, sho
         }
       }
     });
-  }, [isMultiShop, stop1.lat, stop1.lng, pickup.lat, pickup.lng]);
+  }, [isMultiShop, stop1.lat, stop1.lng, pickup.lat, pickup.lng, shipperLocation?.lat, shipperLocation?.lng]);
 
   // Lắng nghe IFRAME_READY từ iframe để đồng bộ ngay khi iframe sẵn sàng
   useEffect(() => {
@@ -443,8 +443,8 @@ export default function TrackingMap({ orderId, orderStatus, deliveryAddress, sho
     var stop2Done = ${Boolean(stop2.done)};
     var deliveryLat = ${delivery.lat};
     var deliveryLng = ${delivery.lng};
-    var initialShipLat = ${shipperLocation?.lat || (pickup.lat + 0.008)};
-    var initialShipLng = ${shipperLocation?.lng || (pickup.lng - 0.008)};
+    var initialShipLat = ${shipperLocation?.lat || 10.78033};
+    var initialShipLng = ${shipperLocation?.lng || 106.65691};
     var apiKey = '${VIETMAP_API_KEY}';
 
     var map = L.map('map', { zoomControl: true, attributionControl: false }).setView([(pickupLat + deliveryLat) / 2, (pickupLng + deliveryLng) / 2], 13);
@@ -644,7 +644,26 @@ export default function TrackingMap({ orderId, orderStatus, deliveryAddress, sho
         shipperMarker.setLatLng([lat, lng]);
         shipperMarker.setTooltipContent('🛵 ' + sName + ' (Shipper)');
       }
+
+      // Cập nhật lại chặng Shipper -> Stop 1 (Xanh dương #2563EB) theo toạ độ mới của Shipper
+      var now = Date.now();
+      if (now - lastShipperLegTime > 2000) {
+        lastShipperLegTime = now;
+        var destLat = isMultiShop ? stop1Lat : pickupLat;
+        var destLng = isMultiShop ? stop1Lng : pickupLng;
+        fetchAndDrawLeg(lat, lng, destLat, destLng, '#2563EB', 0);
+      }
     }
+
+    // Cho phép nhấp vào bản đồ để chuyển toạ độ Shipper (đồng bộ ngay chặng lấy món)
+    map.on('click', function(e) {
+      if (shipperMarker) {
+        shipperMarker.setLatLng(e.latlng);
+      }
+      var destLat = isMultiShop ? stop1Lat : pickupLat;
+      var destLng = isMultiShop ? stop1Lng : pickupLng;
+      fetchAndDrawLeg(e.latlng.lat, e.latlng.lng, destLat, destLng, '#2563EB', 0);
+    });
 
     // Kết nối STOMP WebSocket trực tiếp
     var activeShipperId = ${deliveryData?.shipperId || 'null'};
@@ -704,6 +723,18 @@ export default function TrackingMap({ orderId, orderStatus, deliveryAddress, sho
 
       if (msg.type === 'UPDATE_LOCATION' && msg.lat && msg.lng) {
         smoothUpdateShipper(msg.lat, msg.lng, msg.name);
+      }
+
+      if (msg.type === 'SET_ROUTE_SHOP' && msg.route && msg.route.length > 0) {
+        drawLeg(msg.route, '#2563EB', 0);
+      }
+
+      if (msg.type === 'SET_ROUTE_BETWEEN' && msg.route && msg.route.length > 0) {
+        drawLeg(msg.route, '#7C3AED', 1);
+      }
+
+      if (msg.type === 'SET_ROUTE_CUSTOMER' && msg.route && msg.route.length > 0) {
+        drawLeg(msg.route, '#EA580C', isMultiShop ? 2 : 1);
       }
     });
 
@@ -842,12 +873,12 @@ export default function TrackingMap({ orderId, orderStatus, deliveryAddress, sho
                 </Marker>
               )}
 
-              {/* Tuyến đường Shipper -> Shop (Màu xanh) */}
+              {/* Tuyến đường Shipper -> Shop (Màu xanh dương) */}
               {routeShipperToShop.length > 0 && (
                 <Polyline
                   coordinates={routeShipperToShop.map(c => ({ latitude: c[0], longitude: c[1] }))}
-                  strokeColor="#3B82F6"
-                  strokeWidth={5}
+                  strokeColor="#2563EB"
+                  strokeWidth={6}
                 />
               )}
 
@@ -864,7 +895,7 @@ export default function TrackingMap({ orderId, orderStatus, deliveryAddress, sho
               {routeShopToCustomer.length > 0 && (
                 <Polyline
                   coordinates={routeShopToCustomer.map(c => ({ latitude: c[0], longitude: c[1] }))}
-                  strokeColor="#F97316"
+                  strokeColor="#EA580C"
                   strokeWidth={5}
                 />
               )}

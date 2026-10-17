@@ -8,6 +8,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Image,
+  Platform,
 } from "react-native";
 import {
   X,
@@ -122,7 +123,10 @@ export default function HistoryDetailModal({ visible, delivery, onClose }) {
       onRequestClose={onClose}
     >
       <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+        <View style={[
+          styles.modalContent, 
+          Platform.OS !== 'web' && { paddingBottom: Math.max(insets.bottom, 16) }
+        ]}>
           {/* Header */}
           <View style={styles.header}>
             <View style={{ flex: 1 }}>
@@ -371,17 +375,28 @@ export default function HistoryDetailModal({ visible, delivery, onClose }) {
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.55)",
-    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: Platform.OS === "web" ? "center" : "flex-end",
+    alignItems: "center",
+    padding: Platform.OS === "web" ? 16 : 0,
   },
   modalContent: {
     width: "100%",
-    maxWidth: 540,
+    maxWidth: Platform.OS === "web" ? 460 : 480,
     alignSelf: "center",
     backgroundColor: "#F9FAFB",
+    borderRadius: Platform.OS === "web" ? 24 : 0,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: "92%",
+    borderBottomLeftRadius: Platform.OS === "web" ? 24 : 0,
+    borderBottomRightRadius: Platform.OS === "web" ? 24 : 0,
+    maxHeight: Platform.OS === "web" ? "88%" : "92%",
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 25,
+    elevation: 10,
   },
   header: {
     flexDirection: "row",
@@ -423,6 +438,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
+    paddingBottom: 24,
   },
   statusBanner: {
     flexDirection: "row",

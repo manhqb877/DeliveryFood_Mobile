@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
-  ScrollView, RefreshControl, Alert, Animated
+  ScrollView, RefreshControl, Alert, Animated, Platform, Modal
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useShipper } from '../context/ShipperContext';
 import {
   Wallet, TrendingUp, RefreshCw, AlertCircle, CheckCircle2,
-  ArrowUpRight, ShieldCheck, DollarSign, Clock, ChevronRight, Store
+  ArrowUpRight, ShieldCheck, DollarSign, Clock, ChevronRight, Store, X
 } from 'lucide-react-native';
 import apiClient from '../lib/apiClient';
 
@@ -23,6 +23,17 @@ export default function WalletScreen() {
   const [remittances, setRemittances] = useState([]);
   const [shopMap, setShopMap] = useState({});
   const [remitLoading, setRemitLoading] = useState(false);
+
+  // In-app Modals
+  const [selectedRemit, setSelectedRemit] = useState(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [resultModal, setResultModal] = useState({
+    visible: false,
+    success: false,
+    title: '',
+    message: '',
+    details: null,
+  });
 
   const cardScaleAnim = useRef(new Animated.Value(0.96)).current;
 
@@ -118,34 +129,46 @@ export default function WalletScreen() {
     }
   };
 
-  const handleRemitCOD = async (remit) => {
-    const isMulti = remit.isMultiShop;
-    const msg = isMulti
-      ? `Khoản COD ${formatCurrency(remit.amount)} sẽ được tự động hoàn về ví của cả 2 quán:\n\n• ${remit.shop1Name}: ${formatCurrency(remit.shop1Amount)}\n• ${remit.shop2Name}: ${formatCurrency(remit.shop2Amount)}\n\nBạn có chắc chắn muốn nộp ngay?`
-      : `Bạn có chắc chắn muốn nộp khoản tiền thu hộ ${formatCurrency(remit.amount)} về cho ${remit.shop1Name || 'đối tác'}?`;
+  const handleRemitCOD = (remit) => {
+    setSelectedRemit(remit);
+    setShowConfirmModal(true);
+  };
 
-    Alert.alert(
-      'Xác nhận hoàn tiền COD',
-      msg,
-      [
-        { text: 'Huỷ', style: 'cancel' },
-        {
-          text: 'Nộp ngay',
-          onPress: async () => {
-            try {
-              setRemitLoading(true);
-              await apiClient.post(`/remittances/${remit.id}/complete`);
-              Alert.alert('✅ Thành công', `Đã nộp tiền thu hộ ${formatCurrency(remit.amount)} về hệ thống và hoàn ví đối tác!`);
-              fetchWallet(true);
-            } catch (e) {
-              Alert.alert('Lỗi', 'Không thể hoàn tiền: ' + (e?.message || ''));
-            } finally {
-              setRemitLoading(false);
-            }
-          }
-        }
-      ]
-    );
+  const executeRemit = async () => {
+    if (!selectedRemit) return;
+    try {
+      setRemitLoading(true);
+      await apiClient.post(`/remittances/${selectedRemit.id}/complete`);
+      setShowConfirmModal(false);
+      
+      const isMulti = selectedRemit.isMultiShop;
+      setResultModal({
+        visible: true,
+        success: true,
+        title: 'Nộp tiền COD thành công!',
+        message: isMulti
+          ? `Khoản COD ${formatCurrency(selectedRemit.amount)} đã được hệ thống tự động đối soát và hoàn tiền vào ví của cả 2 đối tác quán.`
+          : `Khoản COD ${formatCurrency(selectedRemit.amount)} đã được hoàn trả thành công vào ví của đối tác ${selectedRemit.shop1Name || 'cửa hàng'}.`,
+        details: isMulti ? [
+          { label: selectedRemit.shop1Name, amount: selectedRemit.shop1Amount, color: '#2563EB' },
+          { label: selectedRemit.shop2Name, amount: selectedRemit.shop2Amount, color: '#7C3AED' },
+        ] : null,
+      });
+
+      await fetchWallet(true);
+    } catch (e) {
+      const errMsg = e?.response?.data?.message || e?.message || 'Không thể kết nối máy chủ';
+      setShowConfirmModal(false);
+      setResultModal({
+        visible: true,
+        success: false,
+        title: 'Nộp tiền không thành công',
+        message: errMsg,
+        details: null,
+      });
+    } finally {
+      setRemitLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -362,6 +385,177 @@ export default function WalletScreen() {
           </View>
         </ScrollView>
       )}
+
+      {/* ================= MODAL XÁC NHẬN NỘP COD ================= */}
+      <Modal
+        visible={showConfirmModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !remitLoading && setShowConfirmModal(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalContainer3D}>
+            {/* Header Icon & Close */}
+            <View style={styles.modalHeaderRow}>
+              <View style={styles.modalIconCircle}>
+                <Wallet color="#D97706" size={24} />
+              </View>
+              <TouchableOpacity 
+                style={styles.modalCloseBtn}
+                onPress={() => !remitLoading && setShowConfirmModal(false)}
+                disabled={remitLoading}
+                activeOpacity={0.7}
+              >
+                <X size={18} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalTitle}>Xác nhận nộp COD</Text>
+            <Text style={styles.modalSubtitle}>
+              Đơn hàng: {selectedRemit?.orderCode || `#${selectedRemit?.orderId || selectedRemit?.id}`}
+            </Text>
+
+            {/* Chi tiết khoản nộp */}
+            {selectedRemit?.isMultiShop ? (
+              <View style={styles.modalMultiCard}>
+                <View style={styles.modalMultiBadge}>
+                  <Text style={styles.modalMultiBadgeText}>⚡ HOÀN VÍ CẢ 2 QUÁN</Text>
+                </View>
+
+                <View style={styles.modalShopRow}>
+                  <View style={styles.modalShopLeft}>
+                    <Store size={14} color="#2563EB" />
+                    <Text style={styles.modalShopName} numberOfLines={1}>
+                      Quán 1: {selectedRemit?.shop1Name}
+                    </Text>
+                  </View>
+                  <Text style={styles.modalShopAmountBlue}>
+                    {formatCurrency(selectedRemit?.shop1Amount)}
+                  </Text>
+                </View>
+
+                <View style={styles.modalShopRow}>
+                  <View style={styles.modalShopLeft}>
+                    <Store size={14} color="#7C3AED" />
+                    <Text style={styles.modalShopName} numberOfLines={1}>
+                      Quán 2: {selectedRemit?.shop2Name}
+                    </Text>
+                  </View>
+                  <Text style={styles.modalShopAmountPurple}>
+                    {formatCurrency(selectedRemit?.shop2Amount)}
+                  </Text>
+                </View>
+
+                <View style={styles.modalDashedLine} />
+
+                <View style={styles.modalTotalRow}>
+                  <Text style={styles.modalTotalLabel}>Tổng tiền COD:</Text>
+                  <Text style={styles.modalTotalValue}>
+                    {formatCurrency(selectedRemit?.amount)}
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.modalSingleCard}>
+                <View style={styles.modalShopRow}>
+                  <View style={styles.modalShopLeft}>
+                    <Store size={14} color="#2563EB" />
+                    <Text style={styles.modalShopName} numberOfLines={1}>
+                      {selectedRemit?.shop1Name || 'Cửa hàng đối tác'}
+                    </Text>
+                  </View>
+                </View>
+                <View style={[styles.modalTotalRow, { marginTop: 8 }]}>
+                  <Text style={styles.modalTotalLabel}>Số tiền COD:</Text>
+                  <Text style={styles.modalTotalValue}>
+                    {formatCurrency(selectedRemit?.amount)}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            <View style={styles.modalNoteBox}>
+              <ShieldCheck size={16} color="#059669" style={{ marginTop: 2, marginRight: 6 }} />
+              <Text style={styles.modalNoteText}>
+                Tiền COD sẽ được nộp về hệ thống và tự động nạp hoàn trả vào ví của chủ quán ngay lập tức.
+              </Text>
+            </View>
+
+            {/* Actions */}
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setShowConfirmModal(false)}
+                disabled={remitLoading}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.modalCancelBtnText}>Huỷ bỏ</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.modalConfirmBtn}
+                onPress={executeRemit}
+                disabled={remitLoading}
+                activeOpacity={0.85}
+              >
+                {remitLoading ? (
+                  <ActivityIndicator size="small" color="#0F172A" />
+                ) : (
+                  <Text style={styles.modalConfirmBtnText}>Nộp ngay</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ================= MODAL KẾT QUẢ ================= */}
+      <Modal
+        visible={resultModal.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setResultModal(prev => ({ ...prev, visible: false }))}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalContainer3D}>
+            <View style={styles.resultIconWrap}>
+              {resultModal.success ? (
+                <View style={styles.resultSuccessCircle}>
+                  <CheckCircle2 color="#15803D" size={36} />
+                </View>
+              ) : (
+                <View style={styles.resultErrorCircle}>
+                  <AlertCircle color="#DC2626" size={36} />
+                </View>
+              )}
+            </View>
+
+            <Text style={styles.resultTitle}>{resultModal.title}</Text>
+            <Text style={styles.resultMessage}>{resultModal.message}</Text>
+
+            {resultModal.details && (
+              <View style={styles.resultDetailsBox}>
+                {resultModal.details.map((d, i) => (
+                  <View key={i} style={styles.resultDetailRow}>
+                    <Text style={styles.resultDetailLabel} numberOfLines={1}>• {d.label}:</Text>
+                    <Text style={[styles.resultDetailAmount, { color: d.color }]}>+{formatCurrency(d.amount)}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={styles.resultCloseBtn}
+              onPress={() => setResultModal(prev => ({ ...prev, visible: false }))}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.resultCloseBtnText}>
+                {resultModal.success ? 'Hoàn tất' : 'Đóng'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -771,5 +965,257 @@ const styles = StyleSheet.create({
     color: '#64748B',
     textAlign: 'center',
     lineHeight: 18,
+  },
+
+  // In-app Modal Styles
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  modalContainer3D: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 12,
+  },
+  modalHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  modalIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FEF3C7',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCloseBtn: {
+    padding: 8,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 2,
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    color: '#64748B',
+    fontWeight: '600',
+    marginBottom: 14,
+  },
+  modalMultiCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 14,
+  },
+  modalMultiBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#EEF2FF',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginBottom: 10,
+  },
+  modalMultiBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#4F46E5',
+    letterSpacing: 0.5,
+  },
+  modalSingleCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 14,
+  },
+  modalShopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginVertical: 4,
+  },
+  modalShopLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+    marginRight: 8,
+  },
+  modalShopName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  modalShopAmountBlue: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#2563EB',
+  },
+  modalShopAmountPurple: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#7C3AED',
+  },
+  modalDashedLine: {
+    height: 1,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderStyle: 'dashed',
+    marginVertical: 10,
+  },
+  modalTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  modalTotalLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  modalTotalValue: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: '#D97706',
+  },
+  modalNoteBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#ECFDF5',
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 18,
+  },
+  modalNoteText: {
+    fontSize: 12,
+    color: '#065F46',
+    flex: 1,
+    lineHeight: 17,
+    fontWeight: '500',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  modalCancelBtn: {
+    flex: 1,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCancelBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  modalConfirmBtn: {
+    flex: 1.4,
+    backgroundColor: '#FFB800',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#FFB800',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  modalConfirmBtnText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  resultIconWrap: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  resultSuccessCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#DCFCE7',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  resultErrorCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FEE2E2',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  resultTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  resultMessage: {
+    fontSize: 13,
+    color: '#475569',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 14,
+  },
+  resultDetailsBox: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    gap: 6,
+  },
+  resultDetailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  resultDetailLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#334155',
+    flex: 1,
+  },
+  resultDetailAmount: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  resultCloseBtn: {
+    backgroundColor: '#0F172A',
+    borderRadius: 14,
+    paddingVertical: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resultCloseBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

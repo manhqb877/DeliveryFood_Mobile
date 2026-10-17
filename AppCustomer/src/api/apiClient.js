@@ -1,17 +1,25 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const GATEWAY_URL = 'http://10.62.148.11:8080';
-const BASE_URL = `${GATEWAY_URL}/api/v1`;
+export const GATEWAY_URL = 'https://unentwined-johanne-biasedly.ngrok-free.dev';
+
+export const resolveGatewayUrl = () => GATEWAY_URL;
+
+export const getBaseUrl = () => `${resolveGatewayUrl()}/api/v1`;
 
 const apiClient = axios.create({
-  baseURL: BASE_URL,
+  baseURL: getBaseUrl(),
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
     'Bypass-Tunnel-Reminder': 'true',
     'ngrok-skip-browser-warning': 'true',
   },
+});
+
+apiClient.interceptors.request.use((config) => {
+  config.baseURL = getBaseUrl();
+  return config;
 });
 
 // Interceptor đính kèm JWT Bearer token và X-User-Id hoặc X-Guest-Session-Id vào mỗi request
@@ -68,7 +76,5 @@ apiClient.interceptors.response.use(
     return Promise.reject(err);
   }
 );
-
-export const getBaseUrl = () => BASE_URL;
 
 export default apiClient;

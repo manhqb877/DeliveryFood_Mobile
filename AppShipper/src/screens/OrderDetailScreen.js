@@ -1480,6 +1480,9 @@ export default function OrderDetailScreen({ route, navigation }) {
       if (shipperMarker) {
         shipperMarker.setLatLng(e.latlng);
       }
+      var targetLat = isMultiShop ? stop1Lat : pickupLat;
+      var targetLng = isMultiShop ? stop1Lng : pickupLng;
+      fetchAndDrawLeg(e.latlng.lat, e.latlng.lng, targetLat, targetLng, '#2563EB', 0);
       try {
         window.parent.postMessage({
           type: 'MAP_CLICK_LOCATION',
@@ -1497,6 +1500,9 @@ export default function OrderDetailScreen({ route, navigation }) {
         if (shipperMarker) {
           shipperMarker.setLatLng([msg.lat, msg.lng]);
         }
+        var targetLat = isMultiShop ? stop1Lat : pickupLat;
+        var targetLng = isMultiShop ? stop1Lng : pickupLng;
+        fetchAndDrawLeg(msg.lat, msg.lng, targetLat, targetLng, '#2563EB', 0);
       }
 
       if (msg.type === 'RECENTER') {
